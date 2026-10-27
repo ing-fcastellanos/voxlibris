@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos de la biblioteca y de los componentes del Sistema de diseño VoxLibris (ui/components). -->
+<resources>
+    <!-- Componentes -->
+    <string name="vx_new">Nuevo</string>
+    <string name="vx_finished">Terminado</string>
+    <string name="vx_read_percent">%1$d %% leído</string>
+    <string name="vx_listen_to">Escuchar %1$s</string>
+    <string name="vx_pause_book">Pausar %1$s</string>
+    <string name="vx_open_book">Abrir %1$s</string>
+    <string name="vx_book_actions">Opciones de %1$s</string>
+    <string name="vx_voice_chip">Lector %1$s, velocidad %2$s</string>
+    <string name="vx_now_playing">Reproduciendo</string>
+
+    <!-- Biblioteca -->
+    <string name="library_heading">¿Qué escuchamos?</string>
+    <string name="library_section">Tu biblioteca</string>
+    <plurals name="library_count">
+        <item quantity="one">%1$d libro</item>
+        <item quantity="other">%1$d libros</item>
+    </plurals>
+    <string name="library_continue_label">Seguís con</string>
+    <string name="library_continue_listen">Seguir escuchando</string>
+    <string name="library_continue_hint">Desde donde lo dejaste</string>
+    <string name="library_read">Leer</string>
+    <string name="library_empty_caption">También podés abrir un EPUB desde el gestor de archivos y elegir VoxLibris.</string>
+    <string name="library_nav">Navegación principal</string>
+    <string name="library_nav_home">Inicio</string>
+    <string name="library_status_playing">Leyendo en voz alta</string>
+    <string name="library_status_needs_model">Faltan las voces. Tocá para descargarlas.</string>
+</resources>

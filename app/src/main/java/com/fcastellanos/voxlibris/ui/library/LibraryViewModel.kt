@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -84,6 +85,8 @@ class LibraryViewModel(
 
     fun delete(book: Book) {
         viewModelScope.launch {
+            // No se puede seguir leyendo un libro cuyo archivo se borra.
+            if (readAloud.isActiveFor(book.id)) readAloud.stop()
             repository.delete(book)
             _messages.send(UiMessage.Deleted(book.title))
         }
@@ -103,6 +106,41 @@ class LibraryViewModel(
                 }
             } finally {
                 _openingBookId.value = null
+            }
+        }
+    }
+
+    /**
+     * Escucha un libro sin abrir el lector. Si ya es el que suena, alterna play y pausa.
+     *
+     * La lectura en voz alta necesita la publicación abierta: la abrimos (una referencia),
+     * arrancamos desde la posición guardada y soltamos nuestra referencia cuando el gestor ya
+     * tomó la suya, o cuando terminó de intentarlo. Mientras falten las voces la sostenemos,
+     * porque el gestor arranca solo cuando terminan de instalarse.
+     */
+    fun listen(book: Book) {
+        if (readAloud.isActiveFor(book.id)) {
+            readAloud.togglePlayPause()
+            return
+        }
+        if (_openingBookId.value != null) return
+        viewModelScope.launch {
+            _openingBookId.value = book.id
+            val result = try {
+                readerRepository.open(book.id)
+            } finally {
+                _openingBookId.value = null
+            }
+            when (result) {
+                is OpenBookResult.Failure -> _messages.send(UiMessage.OpenFailed(result.error))
+                is OpenBookResult.Success -> try {
+                    readAloud.start(book.id, result.session.initialLocator)
+                    readAloud.status.first {
+                        it != ReadAloudManager.Status.Preparing && it != ReadAloudManager.Status.NeedsModel
+                    }
+                } finally {
+                    readerRepository.release(book.id)
+                }
             }
         }
     }

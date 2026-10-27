@@ -17,7 +17,7 @@ El sistema de diseño es la fuente de verdad. El lienzo lo usa para dibujar pant
 
 - Ningún color, tamaño de letra, radio, espacio ni sombra aparece en el código o en el lienzo si no está en el sistema. Si hace falta uno nuevo, se agrega primero al sistema, con su nota de uso.
 - No uses el color dinámico de Material (`dynamicLightColorScheme`, `dynamicDarkColorScheme`). Reemplaza la paleta de la marca por los colores del fondo de pantalla.
-- Cada componente de Compose lleva el mismo nombre que en el sistema: PlayButton, BookCover, BookRow, ContinueCard, MiniPlayer, PlayerPill, NavBar y el resto. Las clases `vx-` del lienzo se corresponden uno a uno con esos componentes.
+- Cada componente de Compose lleva el mismo nombre que en el sistema: PlayButton, BookCover, BookRow, ContinueCard, MiniPlayer, PlayerPill, NavBar y el resto. Si el nombre chocaría con uno de Material, lleva el prefijo `Vox`: VoxButton, VoxIconButton, VoxSnackbar, VoxBottomSheet, VoxMenuItem, VoxConfirmDialog. Las clases `vx-` del lienzo se corresponden uno a uno con esos componentes.
 - Donde Material ya tiene la pieza (ModalBottomSheet, AlertDialog, DropdownMenu, Snackbar, Switch), adaptala con los tokens en lugar de rehacerla.
 - `tomato` significa escuchar. `mustard` como fondo de texto marca solo la frase que está sonando. `accent` es solo para agregar libros. La tarjeta del libro actual y el reproductor van siempre en `tomato`.
 - El color y la forma de la portada generada de cada libro salen de un hash estable de su identificador. No hace falta guardarlos en la base de datos. Si el EPUB trae portada, se muestra la imagen real.
@@ -28,7 +28,7 @@ El sistema de diseño es la fuente de verdad. El lienzo lo usa para dibujar pant
 
 ### Capa de UI
 
-El tema ya aplica el sistema. Los componentes todavía no existen.
+El tema ya aplica el sistema y la biblioteca ya usa sus componentes. El lector y la pantalla de lectores todavía usan Material directo.
 
 ```text
 design/tokens.json            # copia de project/tokens.json del sistema
@@ -38,14 +38,15 @@ ui/theme/Tokens.kt            # generado: VoxColors, VoxDimens, VoxShadows, VoxT
 res/values*/vx_colors.xml     # generado: los colores como recursos, claro y oscuro
 ui/theme/Type.kt              # fuentes, estilos de texto y su mapeo a la tipografía de Material
 ui/theme/Theme.kt             # VoxLibrisTheme: tokens propios y esquema de Material
-ui/components/                # pendiente: un archivo por componente del sistema
+ui/components/                # componentes del sistema y ComponentPreviews.kt, con vistas previas claras y oscuras
 ```
 
 - En Compose, los tokens se leen desde `VoxLibrisTheme`: `VoxLibrisTheme.colors.tomato`, `VoxLibrisTheme.typography.label`, `VoxLibrisTheme.dimens.space4`. Los nombres son los del sistema en camelCase.
 - Los componentes de Material toman la paleta del mapeo de `Theme.kt`. `primary` es el negro de la marca, `primaryContainer` es `accent`, `secondary` es `tomato` y `secondaryContainer` es `track`. Si un componente de Material no queda como en el lienzo, se reemplaza por el componente del sistema, no se cambia el mapeo para ese caso.
+- El color y la forma de cada libro salen de `bookStyleFor(título)`, y el color de cada voz de `voiceTint(id)`. No los guardes ni los elijas a mano.
 - Si cambia `design/tokens.json`, corré `python3 tools/gen_tokens.py`. Con `--check` termina con error si los archivos generados quedaron desactualizados. `VoxColorsContrastTest` verifica que las parejas de texto y fondo del sistema pasen 4,5:1 en los dos temas.
 
-Orden de trabajo: el tema ya está hecho. Sigue migrar al sistema las pantallas que se hicieron antes que él: la biblioteca y el lector de la fase 3, con sus hojas de índice y de ajustes, que corresponden a Texto completo, Capítulos y Apariencia en el lienzo. Las fases siguientes se construyen directamente con el sistema. La fase 4 usa Reproductor, Elegir voz y Preparando la voz. La fase 5 usa el mini reproductor y el temporizador.
+Orden de trabajo: el tema y la biblioteca ya están hechos. Sigue migrar el lector de la fase 3, con sus hojas de índice y de ajustes, que corresponden a Texto completo, Capítulos y Apariencia en el lienzo. Las fases siguientes se construyen directamente con el sistema. La fase 4 usa Reproductor, Elegir voz y Preparando la voz. La fase 5 usa el mini reproductor y el temporizador.
 
 ### Pantallas o funciones nuevas
 
