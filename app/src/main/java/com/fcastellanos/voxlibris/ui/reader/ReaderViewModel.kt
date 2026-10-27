@@ -1,5 +1,6 @@
 package com.fcastellanos.voxlibris.ui.reader
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,9 @@ import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReaderSession
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
+import com.fcastellanos.voxlibris.tts.SherpaTtsEngineProvider
+import com.fcastellanos.voxlibris.tts.TtsPreferencesStore
+import com.fcastellanos.voxlibris.tts.VoiceModelManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -32,10 +36,14 @@ import org.readium.r2.shared.util.AbsoluteUrl
 @OptIn(ExperimentalReadiumApi::class)
 class ReaderViewModel(
     private val bookId: Long,
+    private val application: Application,
     private val readerRepository: ReaderRepository,
     private val bookRepository: BookRepository,
     private val preferencesStore: ReadingPreferencesStore,
     private val applicationScope: CoroutineScope,
+    ttsEngineProvider: SherpaTtsEngineProvider,
+    voiceModels: VoiceModelManager,
+    ttsPreferences: TtsPreferencesStore,
 ) : ViewModel(), EpubNavigatorFragment.Listener {
 
     sealed interface Navigation {
@@ -46,6 +54,11 @@ class ReaderViewModel(
     val session: ReaderSession? = readerRepository[bookId]
 
     val title: String = session?.title.orEmpty()
+
+    /** Lectura en voz alta; null solo si la sesión no existe (el lector se cierra en ese caso). */
+    val readAloud: ReadAloudController? = session?.let {
+        ReadAloudController(application, it, ttsEngineProvider, voiceModels, ttsPreferences, viewModelScope)
+    }
 
     /** Índice aplanado; si el EPUB no declara índice, se usa el orden de lectura. */
     val toc: List<FlatEntry<Link>> = session?.publication?.let { publication ->
@@ -85,6 +98,11 @@ class ReaderViewModel(
         _overlayVisible.value = !_overlayVisible.value
     }
 
+    /** Empieza a leer desde la posición actual del lector. */
+    fun listen() {
+        readAloud?.start(from = _currentLocator.value)
+    }
+
     fun onLocatorChanged(locator: Locator) {
         _currentLocator.value = locator
         saveJob?.cancel()
@@ -120,6 +138,7 @@ class ReaderViewModel(
     }
 
     override fun onCleared() {
+        readAloud?.stop()
         saveJob?.cancel()
         val pending = _currentLocator.value?.toJSON()?.toString()?.takeIf { it != lastSavedJson }
         readerRepository.close(bookId)
@@ -135,10 +154,14 @@ class ReaderViewModel(
             initializer {
                 ReaderViewModel(
                     bookId = bookId,
+                    application = container.application,
                     readerRepository = container.readerRepository,
                     bookRepository = container.bookRepository,
                     preferencesStore = container.readingPreferences,
                     applicationScope = container.applicationScope,
+                    ttsEngineProvider = container.ttsEngineProvider,
+                    voiceModels = container.voiceModels,
+                    ttsPreferences = container.ttsPreferences,
                 )
             }
         }

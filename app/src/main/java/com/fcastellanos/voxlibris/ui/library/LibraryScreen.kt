@@ -25,6 +25,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -66,7 +67,7 @@ private val EPUB_MIME_TYPES = arrayOf("application/epub+zip")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel) {
+fun LibraryScreen(viewModel: LibraryViewModel, onOpenVoices: () -> Unit) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     val progress by viewModel.importProgress.collectAsStateWithLifecycle()
     val openingBookId by viewModel.openingBookId.collectAsStateWithLifecycle()
@@ -92,7 +93,16 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.library_title)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.library_title)) },
+                actions = {
+                    IconButton(onClick = onOpenVoices) {
+                        Icon(painterResource(R.drawable.ic_voice), contentDescription = stringResource(R.string.voices_title))
+                    }
+                },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             ExtendedFloatingActionButton(

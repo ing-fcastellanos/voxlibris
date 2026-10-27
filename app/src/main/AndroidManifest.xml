@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Solo para descargar el paquete de voces una vez; la síntesis es 100 % local. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:name=".VoxLibrisApp"
         android:allowBackup="true"

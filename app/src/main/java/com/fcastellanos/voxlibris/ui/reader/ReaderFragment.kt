@@ -25,7 +25,10 @@ import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.VoxLibrisApp
 import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
@@ -39,7 +42,7 @@ import org.readium.r2.shared.util.AbsoluteUrl
  * Sigue el patrón de la app de referencia de Readium: la fábrica de fragments se fija
  * en el FragmentManager hijo antes de `super.onCreate`.
  */
-@OptIn(ExperimentalReadiumApi::class)
+@OptIn(ExperimentalReadiumApi::class, FlowPreview::class)
 class ReaderFragment : Fragment() {
 
     private val bookId: Long get() = requireArguments().getLong(ARG_BOOK_ID)
@@ -131,6 +134,21 @@ class ReaderFragment : Fragment() {
                 }
                 launch { viewModel.externalLinks.collect { openExternal(it) } }
                 launch { viewModel.overlayVisible.collect { setSystemBarsVisible(it) } }
+                viewModel.readAloud?.let { readAloud ->
+                    launch {
+                        readAloud.highlight.collect { locator ->
+                            val decorations = locator?.let {
+                                listOf(Decoration(id = TTS_DECORATION_ID, locator = it, style = Decoration.Style.Highlight(tint = TTS_HIGHLIGHT_TINT, isActive = true)))
+                            } ?: emptyList()
+                            navigator.applyDecorations(decorations, TTS_DECORATION_GROUP)
+                        }
+                    }
+                    launch {
+                        readAloud.pageSync.sample(PAGE_SYNC_MS).collect { locator ->
+                            if (readAloud.status.value == ReadAloudController.Status.Playing) navigator.go(locator, animated = true)
+                        }
+                    }
+                }
             }
         }
     }
@@ -171,6 +189,10 @@ class ReaderFragment : Fragment() {
         private const val NAVIGATOR_TAG = "navigator"
         private const val ARG_BOOK_ID = "book_id"
         private const val SEPIA_BACKGROUND = 0xFFFAF4E8.toInt()
+        private const val TTS_DECORATION_GROUP = "tts"
+        private const val TTS_DECORATION_ID = "tts-utterance"
+        private const val TTS_HIGHLIGHT_TINT = 0x66FFC107
+        private const val PAGE_SYNC_MS = 800L
 
         fun arguments(bookId: Long): Bundle = Bundle().apply { putLong(ARG_BOOK_ID, bookId) }
     }

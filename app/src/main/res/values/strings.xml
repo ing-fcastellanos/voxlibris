@@ -45,4 +45,38 @@
     <string name="position_of">Posición %1$d de %2$d</string>
     <string name="progress_percent">%1$d %%</string>
     <string name="reading_position">Posición de lectura</string>
+
+    <!-- Voz -->
+    <string name="listen">Escuchar</string>
+    <string name="stop_listening">Dejar de escuchar</string>
+    <string name="play">Reproducir</string>
+    <string name="pause">Pausar</string>
+    <string name="next_sentence">Frase siguiente</string>
+    <string name="previous_sentence">Frase anterior</string>
+    <string name="voices_title">Lectores</string>
+    <string name="voice_sample">Escuchar muestra</string>
+    <string name="voice_female">Voz femenina</string>
+    <string name="voice_male">Voz masculina</string>
+    <string name="model_not_installed">Las voces se descargan una sola vez (%1$d MB) y después funcionan sin conexión.</string>
+    <string name="download_voices">Descargar voces</string>
+    <string name="downloading_voices">Descargando voces… %1$d %%</string>
+    <string name="installing_voices">Instalando voces…</string>
+    <string name="voices_ready">Voces instaladas</string>
+    <string name="delete_voices">Eliminar voces</string>
+    <string name="retry">Reintentar</string>
+    <string name="download">Descargar</string>
+    <string name="speed_label">Velocidad: %1$s×</string>
+    <string name="quality">Calidad</string>
+    <string name="quality_auto">Auto</string>
+    <string name="quality_fast">Rápida</string>
+    <string name="quality_high">Alta</string>
+    <string name="quality_hint">Auto mide tu teléfono la primera vez y elige. Rápida sintetiza con 4 pasos; Alta con 8.</string>
+    <string name="tts_preparing">Preparando la voz…</string>
+    <string name="tts_playing">Leyendo</string>
+    <string name="tts_paused">En pausa</string>
+    <string name="tts_ended">Fin del libro</string>
+    <string name="tts_error">No se pudo leer en voz alta: %1$s</string>
+    <string name="tts_need_model_title">Descargar voces</string>
+    <string name="tts_need_model_body">Para escuchar el libro hay que descargar las voces una sola vez (%1$d MB). ¿Descargar ahora?</string>
+    <string name="sample_sentence">Hola, soy %1$s. Puedo leer tus libros en voz alta, sin conexión a internet.</string>
 </resources>

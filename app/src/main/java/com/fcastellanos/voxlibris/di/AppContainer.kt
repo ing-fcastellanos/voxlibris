@@ -1,5 +1,6 @@
 package com.fcastellanos.voxlibris.di
 
+import android.app.Application
 import android.content.Context
 import com.fcastellanos.voxlibris.data.BookRepository
 import com.fcastellanos.voxlibris.data.EpubImporter
@@ -8,6 +9,10 @@ import com.fcastellanos.voxlibris.data.db.AppDatabase
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
 import com.fcastellanos.voxlibris.reading.Readium
+import com.fcastellanos.voxlibris.tts.SherpaTtsEngineProvider
+import com.fcastellanos.voxlibris.tts.SherpaTtsRuntime
+import com.fcastellanos.voxlibris.tts.TtsPreferencesStore
+import com.fcastellanos.voxlibris.tts.VoiceModelManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 class AppContainer(context: Context) {
 
     private val appContext: Context = context.applicationContext
+    val application: Application get() = appContext as Application
 
     /** Trabajo que debe terminar aunque la pantalla que lo lanzó ya no exista (guardar progreso, etc.). */
     val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -30,4 +36,10 @@ class AppContainer(context: Context) {
     val importer: EpubImporter by lazy { EpubImporter(appContext, readium, storage, database.bookDao()) }
     val readingPreferences: ReadingPreferencesStore by lazy { ReadingPreferencesStore(appContext) }
     val readerRepository: ReaderRepository by lazy { ReaderRepository(readium, bookRepository, storage) }
+
+    // Voz on-device
+    val voiceModels: VoiceModelManager by lazy { VoiceModelManager(appContext, applicationScope) }
+    val ttsPreferences: TtsPreferencesStore by lazy { TtsPreferencesStore(appContext) }
+    val ttsRuntime: SherpaTtsRuntime by lazy { SherpaTtsRuntime(voiceModels, ttsPreferences) }
+    val ttsEngineProvider: SherpaTtsEngineProvider by lazy { SherpaTtsEngineProvider(ttsRuntime) }
 }

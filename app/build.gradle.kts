@@ -102,6 +102,12 @@ dependencies {
     implementation(libs.readium.shared)
     implementation(libs.readium.streamer)
     implementation(libs.readium.navigator)
+    implementation(libs.readium.navigator.media.tts)
+    // Tipos de media3 que expone la API de TtsEngineProvider (PlaybackParameters, PlaybackException)
+    implementation(libs.androidx.media3.common)
+
+    // Descompresión del paquete de voces (.tar.bz2)
+    implementation(libs.commons.compress)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
