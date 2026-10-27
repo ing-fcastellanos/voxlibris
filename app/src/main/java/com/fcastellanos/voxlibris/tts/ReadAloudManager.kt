@@ -97,6 +97,8 @@ class ReadAloudManager(
     private var highlightFallback: Job? = null
     private var pendingLocator: Locator? = null
     private var hasStartedSpeaking = false
+    /** True desde que se pidió reproducir: antes de eso, "sin reproducir" significa "preparando", no "en pausa". */
+    private var playRequested = false
     private var resumeFrom: Locator? = null
 
     private val audioManager = application.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -170,6 +172,7 @@ class ReadAloudManager(
             retainedBookId = bookId
             navigator = created
             hasStartedSpeaking = false
+            playRequested = false
             try {
                 bindService()
                 serviceBinder?.openSession(bookId, created.asMedia3Player())
@@ -178,6 +181,7 @@ class ReadAloudManager(
             }
             observe(created, bookId)
             requestFocus()
+            playRequested = true
             created.play()
             Log.i(TAG, "Lectura iniciada: libro $bookId")
         }
@@ -186,6 +190,7 @@ class ReadAloudManager(
     fun play() {
         val nav = navigator ?: return
         requestFocus()
+        playRequested = true
         nav.play()
     }
 
@@ -244,6 +249,7 @@ class ReadAloudManager(
         _highlight.value = null
         pendingLocator = null
         hasStartedSpeaking = false
+        playRequested = false
         _activeBookId.value = null
         _activeTitle.value = null
         _status.value = Status.Idle
@@ -260,8 +266,8 @@ class ReadAloudManager(
                         is TtsNavigator.State.Failure -> Status.Error(state.error.message)
                         TtsNavigator.State.Ended -> Status.Ended
                         else -> when {
-                            !playback.playWhenReady -> Status.Paused
-                            hasStartedSpeaking -> Status.Playing
+                            !playback.playWhenReady && playRequested -> Status.Paused
+                            hasStartedSpeaking && playback.playWhenReady -> Status.Playing
                             else -> Status.Preparing
                         }
                     }
