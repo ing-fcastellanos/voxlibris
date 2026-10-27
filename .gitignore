@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.apk
+*.aab
+captures/
+.externalNativeBuild/
+.cxx/
+/exploracion/tts-test/*.wav
+
+# Descargado por Gradle (tarea downloadSherpaOnnx)
+app/libs/*.aar
+app/libs/*.part

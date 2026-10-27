@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Libro abierto -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,36 L50,40 L50,76 L26,72 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,40 L78,36 L78,72 L54,76 Z" />
+    <!-- Ondas de voz -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M84,48 A8,8 0 0 1 84,60" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M88,42 A14,14 0 0 1 88,66" />
+</vector>

@@ -1,0 +1,58 @@
+[
+ {
+  "name": "piper-es_ES-sharvard-medium-sid0",
+  "sample_rate": 22050,
+  "audio_s": 34.02,
+  "synth_s": 4.48,
+  "rtf": 0.132
+ },
+ {
+  "name": "piper-es_ES-sharvard-medium-sid1",
+  "sample_rate": 22050,
+  "audio_s": 33.41,
+  "synth_s": 4.32,
+  "rtf": 0.129
+ },
+ {
+  "name": "piper-es_MX-claude-high-sid0",
+  "sample_rate": 22050,
+  "audio_s": 37.7,
+  "synth_s": 5.44,
+  "rtf": 0.144
+ },
+ {
+  "name": "kokoro-v1.0-ef_dora-sid28",
+  "sample_rate": 24000,
+  "audio_s": 32.41,
+  "synth_s": 22.17,
+  "rtf": 0.684
+ },
+ {
+  "name": "kokoro-v1.0-em_alex-sid29",
+  "sample_rate": 24000,
+  "audio_s": 33.26,
+  "synth_s": 23.46,
+  "rtf": 0.705
+ },
+ {
+  "name": "kokoro-v1.0-em_santa-sid53",
+  "sample_rate": 24000,
+  "audio_s": 34.49,
+  "synth_s": 24.18,
+  "rtf": 0.701
+ },
+ {
+  "name": "supertonic3-F1-sid0",
+  "sample_rate": 44100,
+  "audio_s": 43.0,
+  "synth_s": 7.8,
+  "rtf": 0.181
+ },
+ {
+  "name": "supertonic3-M1-sid5",
+  "sample_rate": 44100,
+  "audio_s": 43.05,
+  "synth_s": 8.0,
+  "rtf": 0.186
+ }
+]

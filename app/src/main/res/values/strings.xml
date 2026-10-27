@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ReadApp</string>
+    <string name="library_title">Biblioteca</string>
+    <string name="add_book">Agregar libro</string>
+    <string name="empty_library_title">Tu biblioteca está vacía</string>
+    <string name="empty_library_body">Tocá “Agregar libro” para importar un EPUB desde el almacenamiento del teléfono.</string>
+    <string name="importing">Importando %1$d de %2$d…</string>
+    <plurals name="msg_imported">
+        <item quantity="one">Libro agregado a la biblioteca</item>
+        <item quantity="other">%1$d libros agregados a la biblioteca</item>
+    </plurals>
+    <string name="msg_deleted">Se eliminó “%1$s”</string>
+    <string name="msg_cannot_read">No se pudo leer el archivo seleccionado</string>
+    <string name="msg_not_epub">El archivo no es un EPUB</string>
+    <string name="msg_not_epub_detected">El archivo no es un EPUB (detectado: %1$s)</string>
+    <string name="msg_open_failed">No se pudo abrir el EPUB: %1$s</string>
+    <string name="msg_already_in_library">“%1$s” ya está en la biblioteca</string>
+    <string name="msg_reader_not_ready">El lector llega en la próxima fase</string>
+    <string name="delete_dialog_title">¿Eliminar libro?</string>
+    <string name="delete_dialog_body">“%1$s” se quitará de la biblioteca y se borrará su archivo.</string>
+    <string name="delete">Eliminar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="unknown_title">Sin título</string>
+    <string name="cover_of">Portada de %1$s</string>
+</resources>
