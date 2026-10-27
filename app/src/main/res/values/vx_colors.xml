@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Archivo generado por tools/gen_tokens.py a partir de design/tokens.json. No lo edites a mano. Para cambiar un valor, cambialo en el Sistema de diseño VoxLibris, copiá su tokens.json a design/tokens.json y corré: python3 tools/gen_tokens.py -->
+<resources>
+    <color name="vx_ground">#FFF4F3F8</color>
+    <color name="vx_surface">#FFFFFFFF</color>
+    <color name="vx_surface_muted">#FFF4F3F8</color>
+    <color name="vx_track">#FFE2E0EA</color>
+    <color name="vx_line">#FFD9D7E2</color>
+    <color name="vx_ink">#FF17151F</color>
+    <color name="vx_ink_muted">#FF57536A</color>
+    <color name="vx_fill_strong">#FF17151F</color>
+    <color name="vx_fill_strong_raised">#FF2A2733</color>
+    <color name="vx_on_fill_strong">#FFFFFFFF</color>
+    <color name="vx_focus">#FF17151F</color>
+    <color name="vx_scrim">#8C17151F</color>
+    <color name="vx_page">#FFFFF3EE</color>
+    <color name="vx_accent">#FF6D4AFF</color>
+    <color name="vx_on_accent">#FFFFFFFF</color>
+    <color name="vx_accent_soft">#FFDCD3FF</color>
+    <color name="vx_danger">#FFC62D1F</color>
+    <color name="vx_on_danger">#FFFFFFFF</color>
+    <color name="vx_on_color">#FF17151F</color>
+    <color name="vx_on_deep">#FFFFFFFF</color>
+    <color name="vx_tomato">#FFFF6B4A</color>
+    <color name="vx_tomato_track">#FFFFB3A3</color>
+    <color name="vx_tomato_deep">#FFE8492A</color>
+    <color name="vx_ring_track">#FFFFD5C9</color>
+    <color name="vx_mustard">#FFFFC83D</color>
+    <color name="vx_butter">#FFFFE08A</color>
+    <color name="vx_mint">#FF3FD0A0</color>
+    <color name="vx_mint_deep">#FF2BB389</color>
+    <color name="vx_pink">#FFFF7AB6</color>
+    <color name="vx_pink_deep">#FFFF4F9A</color>
+    <color name="vx_cobalt">#FF3A5BFF</color>
+    <color name="vx_cobalt_light">#FF6F86FF</color>
+    <color name="vx_violet">#FF6A3FE0</color>
+    <color name="vx_violet_light">#FF8F6BFF</color>
+    <color name="vx_night">#FF17151F</color>
+    <color name="vx_cover_edge">#0017151F</color>
+</resources>
