@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.ui.library
+package com.fcastellanos.voxlibris.ui.library
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -6,10 +6,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.fcastellanos.readapp.data.Book
-import com.fcastellanos.readapp.data.BookRepository
-import com.fcastellanos.readapp.data.EpubImporter
-import com.fcastellanos.readapp.di.AppContainer
+import com.fcastellanos.voxlibris.data.Book
+import com.fcastellanos.voxlibris.data.BookRepository
+import com.fcastellanos.voxlibris.data.EpubImporter
+import com.fcastellanos.voxlibris.di.AppContainer
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow

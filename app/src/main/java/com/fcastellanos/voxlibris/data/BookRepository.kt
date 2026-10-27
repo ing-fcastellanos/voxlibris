@@ -1,6 +1,6 @@
-package com.fcastellanos.readapp.data
+package com.fcastellanos.voxlibris.data
 
-import com.fcastellanos.readapp.data.db.BookDao
+import com.fcastellanos.voxlibris.data.db.BookDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map

@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "readapp"
+rootProject.name = "voxlibris"
 include(":app")

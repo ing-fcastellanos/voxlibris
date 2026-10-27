@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.data.db
+package com.fcastellanos.voxlibris.data.db
 
 import android.content.Context
 import androidx.room3.Database
@@ -16,7 +16,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
-                instance ?: Room.databaseBuilder<AppDatabase>(context.applicationContext, "readapp.db")
+                instance ?: Room.databaseBuilder<AppDatabase>(context.applicationContext, "voxlibris.db")
                     .build()
                     .also { instance = it }
             }

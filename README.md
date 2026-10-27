@@ -1,4 +1,4 @@
-# ReadApp (nombre provisional)
+# VoxLibris
 
 > Lector de EPUB para Android que lee los libros en voz alta con una IA que corre **dentro del teléfono**. Sin cuentas, sin claves de API, sin nube.
 >
@@ -6,7 +6,7 @@
 
 ## Por qué
 
-Las apps de lectura que "leen en voz alta" suelen depender de un servicio en la nube, de una suscripción o del motor de voz del sistema. ReadApp apunta a otra cosa: un lector de EPUB normal, con voces neuronales de buena calidad que se ejecutan localmente en el dispositivo y que el usuario elige como quien elige un narrador.
+Las apps de lectura que "leen en voz alta" suelen depender de un servicio en la nube, de una suscripción o del motor de voz del sistema. VoxLibris apunta a otra cosa: un lector de EPUB normal, con voces neuronales de buena calidad que se ejecutan localmente en el dispositivo y que el usuario elige como quien elige un narrador.
 
 ## Estado
 
@@ -62,8 +62,8 @@ Gemma quedó descartado para esta función porque no genera audio; sus variantes
 ## Estructura
 
 ```
-app/src/main/java/com/fcastellanos/readapp/
-├── ReadApp.kt              Application; crea el contenedor de dependencias
+app/src/main/java/com/fcastellanos/voxlibris/
+├── VoxLibris.kt              Application; crea el contenedor de dependencias
 ├── MainActivity.kt         Única Activity; maneja ACTION_VIEW de EPUB
 ├── di/AppContainer.kt      Composición manual de dependencias
 ├── reading/Readium.kt      AssetRetriever + PublicationOpener

@@ -1,9 +1,9 @@
-package com.fcastellanos.readapp
+package com.fcastellanos.voxlibris
 
 import android.app.Application
-import com.fcastellanos.readapp.di.AppContainer
+import com.fcastellanos.voxlibris.di.AppContainer
 
-class ReadApp : Application() {
+class VoxLibrisApp : Application() {
 
     lateinit var container: AppContainer
         private set

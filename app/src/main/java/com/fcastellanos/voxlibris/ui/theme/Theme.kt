@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.ui.theme
+package com.fcastellanos.voxlibris.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
-fun ReadAppTheme(
+fun VoxLibrisTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {

@@ -1,13 +1,13 @@
-package com.fcastellanos.readapp.data
+package com.fcastellanos.voxlibris.data
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.fcastellanos.readapp.data.db.BookDao
-import com.fcastellanos.readapp.data.db.BookEntity
-import com.fcastellanos.readapp.reading.Readium
-import com.fcastellanos.readapp.util.FileNames
+import com.fcastellanos.voxlibris.data.db.BookDao
+import com.fcastellanos.voxlibris.data.db.BookEntity
+import com.fcastellanos.voxlibris.reading.Readium
+import com.fcastellanos.voxlibris.util.FileNames
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -100,7 +100,7 @@ class EpubImporter(
                 fileName = fileName,
                 title = extracted.title
                     ?: FileNames.titleFromFileName(displayName)
-                    ?: context.getString(com.fcastellanos.readapp.R.string.unknown_title),
+                    ?: context.getString(com.fcastellanos.voxlibris.R.string.unknown_title),
                 author = extracted.author,
                 language = extracted.language,
                 identifier = extracted.identifier,

@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.data
+package com.fcastellanos.voxlibris.data
 
 import android.content.Context
 import android.net.Uri
@@ -6,8 +6,8 @@ import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.fcastellanos.readapp.data.db.AppDatabase
-import com.fcastellanos.readapp.reading.Readium
+import com.fcastellanos.voxlibris.data.db.AppDatabase
+import com.fcastellanos.voxlibris.reading.Readium
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.first

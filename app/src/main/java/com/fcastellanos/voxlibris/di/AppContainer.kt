@@ -1,11 +1,11 @@
-package com.fcastellanos.readapp.di
+package com.fcastellanos.voxlibris.di
 
 import android.content.Context
-import com.fcastellanos.readapp.data.BookRepository
-import com.fcastellanos.readapp.data.EpubImporter
-import com.fcastellanos.readapp.data.LibraryStorage
-import com.fcastellanos.readapp.data.db.AppDatabase
-import com.fcastellanos.readapp.reading.Readium
+import com.fcastellanos.voxlibris.data.BookRepository
+import com.fcastellanos.voxlibris.data.EpubImporter
+import com.fcastellanos.voxlibris.data.LibraryStorage
+import com.fcastellanos.voxlibris.data.db.AppDatabase
+import com.fcastellanos.voxlibris.reading.Readium
 
 /**
  * Composición manual de dependencias. Alcanza para el tamaño actual de la app;

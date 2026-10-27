@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-    namespace = "com.fcastellanos.readapp"
+    namespace = "com.fcastellanos.voxlibris"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.fcastellanos.readapp"
+        applicationId = "com.fcastellanos.voxlibris"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

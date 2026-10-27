@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.ui.library
+package com.fcastellanos.voxlibris.ui.library
 
 import android.content.Context
 import android.graphics.BitmapFactory
@@ -53,9 +53,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.fcastellanos.readapp.R
-import com.fcastellanos.readapp.data.Book
-import com.fcastellanos.readapp.data.EpubImporter
+import com.fcastellanos.voxlibris.R
+import com.fcastellanos.voxlibris.data.Book
+import com.fcastellanos.voxlibris.data.EpubImporter
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

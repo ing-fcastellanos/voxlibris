@@ -1,6 +1,6 @@
-package com.fcastellanos.readapp.data
+package com.fcastellanos.voxlibris.data
 
-import com.fcastellanos.readapp.data.db.BookEntity
+import com.fcastellanos.voxlibris.data.db.BookEntity
 import java.io.File
 
 /** Libro tal como lo consume la interfaz. */

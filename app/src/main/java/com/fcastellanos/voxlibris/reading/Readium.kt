@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.reading
+package com.fcastellanos.voxlibris.reading
 
 import android.content.Context
 import org.readium.r2.shared.util.asset.AssetRetriever

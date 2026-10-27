@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.util
+package com.fcastellanos.voxlibris.util
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

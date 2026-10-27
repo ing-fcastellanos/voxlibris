@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.util
+package com.fcastellanos.voxlibris.util
 
 object FileNames {
 

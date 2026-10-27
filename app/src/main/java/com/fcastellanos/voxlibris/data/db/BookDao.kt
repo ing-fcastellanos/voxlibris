@@ -1,4 +1,4 @@
-package com.fcastellanos.readapp.data.db
+package com.fcastellanos.voxlibris.data.db
 
 import androidx.room3.Dao
 import androidx.room3.Insert

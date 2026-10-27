@@ -20,7 +20,7 @@ CONTAINER = """<?xml version="1.0" encoding="UTF-8"?>
 OPF = """<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid" xml:lang="es">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="uid">urn:uuid:5d1c4a2e-0b6f-4f5e-9c1a-readapp000001</dc:identifier>
+    <dc:identifier id="uid">urn:uuid:5d1c4a2e-0b6f-4f5e-9c1a-voxlib000001</dc:identifier>
     <dc:title>Libro de prueba</dc:title>
     <dc:creator>Autora de Prueba</dc:creator>
     <dc:language>es</dc:language>
