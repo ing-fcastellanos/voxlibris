@@ -13,6 +13,7 @@ import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.reading.OpenBookError
 import com.fcastellanos.voxlibris.reading.OpenBookResult
 import com.fcastellanos.voxlibris.reading.ReaderRepository
+import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,7 @@ class LibraryViewModel(
     private val repository: BookRepository,
     private val importer: EpubImporter,
     private val readerRepository: ReaderRepository,
+    val readAloud: ReadAloudManager,
 ) : ViewModel() {
 
     val books: StateFlow<List<Book>> = repository.books
@@ -88,13 +90,15 @@ class LibraryViewModel(
     }
 
     /** Abre la publicación con Readium y, si funciona, pide a la pantalla que lance el lector. */
-    fun openBook(book: Book) {
+    fun openBook(book: Book) = openBook(book.id)
+
+    fun openBook(bookId: Long) {
         if (_openingBookId.value != null) return
         viewModelScope.launch {
-            _openingBookId.value = book.id
+            _openingBookId.value = bookId
             try {
-                when (val result = readerRepository.open(book.id)) {
-                    is OpenBookResult.Success -> _events.send(UiEvent.OpenReader(book.id))
+                when (val result = readerRepository.open(bookId)) {
+                    is OpenBookResult.Success -> _events.send(UiEvent.OpenReader(bookId))
                     is OpenBookResult.Failure -> _messages.send(UiMessage.OpenFailed(result.error))
                 }
             } finally {
@@ -105,7 +109,7 @@ class LibraryViewModel(
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(container.bookRepository, container.importer, container.readerRepository) }
+            initializer { LibraryViewModel(container.bookRepository, container.importer, container.readerRepository, container.readAloud) }
         }
     }
 }

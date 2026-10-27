@@ -77,7 +77,7 @@ class ReaderRepositoryTest {
         assertTrue(session.publication.positions().isNotEmpty())
         assertNull(session.initialLocator)
         assertSame(session, repository[id])
-        repository.close(id)
+        repository.release(id)
         assertNull(repository[id])
     }
 
@@ -95,7 +95,7 @@ class ReaderRepositoryTest {
         assertNotNull(session.initialLocator)
         assertEquals(0.5, session.initialLocator!!.locations.totalProgression!!, 1e-9)
         assertEquals(50, books.books.first().single().progressPercent)
-        repository.close(id)
+        repository.release(id)
     }
 
     @Test

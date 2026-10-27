@@ -105,6 +105,8 @@ dependencies {
     implementation(libs.readium.navigator.media.tts)
     // Tipos de media3 que expone la API de TtsEngineProvider (PlaybackParameters, PlaybackException)
     implementation(libs.androidx.media3.common)
+    // Servicio de sesión multimedia (notificación, pantalla de bloqueo, segundo plano)
+    implementation(libs.androidx.media3.session)
 
     // Descompresión del paquete de voces (.tar.bz2)
     implementation(libs.commons.compress)

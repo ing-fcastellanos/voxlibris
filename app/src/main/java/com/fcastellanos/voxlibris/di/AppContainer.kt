@@ -9,6 +9,7 @@ import com.fcastellanos.voxlibris.data.db.AppDatabase
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
 import com.fcastellanos.voxlibris.reading.Readium
+import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.tts.SherpaTtsEngineProvider
 import com.fcastellanos.voxlibris.tts.SherpaTtsRuntime
 import com.fcastellanos.voxlibris.tts.TtsPreferencesStore
@@ -42,4 +43,7 @@ class AppContainer(context: Context) {
     val ttsPreferences: TtsPreferencesStore by lazy { TtsPreferencesStore(appContext) }
     val ttsRuntime: SherpaTtsRuntime by lazy { SherpaTtsRuntime(voiceModels, ttsPreferences) }
     val ttsEngineProvider: SherpaTtsEngineProvider by lazy { SherpaTtsEngineProvider(ttsRuntime) }
+    val readAloud: ReadAloudManager by lazy {
+        ReadAloudManager(application, ttsEngineProvider, voiceModels, ttsPreferences, readerRepository, bookRepository)
+    }
 }

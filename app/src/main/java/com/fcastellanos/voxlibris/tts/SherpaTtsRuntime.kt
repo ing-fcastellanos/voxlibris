@@ -1,6 +1,7 @@
 package com.fcastellanos.voxlibris.tts
 
 import android.os.SystemClock
+import android.util.Log
 import com.k2fsa.sherpa.onnx.GeneratedAudio
 import com.k2fsa.sherpa.onnx.GenerationConfig
 import com.k2fsa.sherpa.onnx.OfflineTts
@@ -73,7 +74,10 @@ class SherpaTtsRuntime(
             ),
             maxNumSentences = 1,
         )
-        return OfflineTts(config = config)
+        val start = SystemClock.elapsedRealtime()
+        return OfflineTts(config = config).also {
+            Log.i(TAG, "Modelo cargado desde ${dir.name} en ${SystemClock.elapsedRealtime() - start} ms (sampleRate=${it.sampleRate()}, voces=${it.numSpeakers()})")
+        }
     }
 
     private fun measure(tts: OfflineTts): Double {
@@ -82,10 +86,13 @@ class SherpaTtsRuntime(
         val audio = synthesize(tts, CALIBRATION_TEXT, 0, 1.0, SherpaTtsDefaults.STEPS_HIGH, "es")
         val seconds = (SystemClock.elapsedRealtime() - start) / 1000.0
         val audioSeconds = audio.samples.size.toDouble() / audio.sampleRate
-        return if (audioSeconds > 0) seconds / audioSeconds else 1.0
+        val rtf = if (audioSeconds > 0) seconds / audioSeconds else 1.0
+        Log.i(TAG, "Calibración: %.2f s de cómputo para %.2f s de audio, RTF=%.3f con 8 pasos".format(seconds, audioSeconds, rtf))
+        return rtf
     }
 
     private companion object {
+        const val TAG = "VoxLibris.TTS"
         const val NUM_THREADS = 2
         const val CALIBRATION_TEXT =
             "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo."

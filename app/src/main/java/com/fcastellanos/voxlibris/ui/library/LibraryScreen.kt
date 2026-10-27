@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +32,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +62,7 @@ import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.data.Book
 import com.fcastellanos.voxlibris.data.EpubImporter
 import com.fcastellanos.voxlibris.reading.OpenBookError
+import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.ui.reader.ReaderActivity
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +76,9 @@ fun LibraryScreen(viewModel: LibraryViewModel, onOpenVoices: () -> Unit) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     val progress by viewModel.importProgress.collectAsStateWithLifecycle()
     val openingBookId by viewModel.openingBookId.collectAsStateWithLifecycle()
+    val playingBookId by viewModel.readAloud.activeBookId.collectAsStateWithLifecycle()
+    val playingTitle by viewModel.readAloud.activeTitle.collectAsStateWithLifecycle()
+    val playingStatus by viewModel.readAloud.status.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     var bookToDelete by remember { mutableStateOf<Book?>(null) }
@@ -104,6 +112,18 @@ fun LibraryScreen(viewModel: LibraryViewModel, onOpenVoices: () -> Unit) {
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            val bookId = playingBookId
+            if (bookId != null) {
+                NowPlayingBar(
+                    title = playingTitle.orEmpty(),
+                    playing = playingStatus == ReadAloudManager.Status.Playing || playingStatus == ReadAloudManager.Status.Preparing,
+                    onPlayPause = viewModel.readAloud::togglePlayPause,
+                    onStop = viewModel.readAloud::stop,
+                    onOpen = { viewModel.openBook(bookId) },
+                )
+            }
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { picker.launch(EPUB_MIME_TYPES) },
@@ -159,6 +179,37 @@ private fun ImportBanner(progress: ImportProgress) {
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
+    }
+}
+
+@Composable
+private fun NowPlayingBar(title: String, playing: Boolean, onPlayPause: () -> Unit, onStop: () -> Unit, onOpen: () -> Unit) {
+    Surface(tonalElevation = 3.dp) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onPlayPause) {
+                Icon(
+                    painterResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play),
+                    contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
+                )
+            }
+            Text(
+                text = stringResource(R.string.now_playing, title),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onOpen) { Text(stringResource(R.string.open_reader)) }
+            IconButton(onClick = onStop) {
+                Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.stop_listening))
+            }
+        }
     }
 }
 

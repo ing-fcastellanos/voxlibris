@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,11 +21,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -39,33 +42,37 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.VoxLibrisApp
+import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.tts.SupertonicModel
 import com.fcastellanos.voxlibris.tts.VoiceModelManager
 import com.fcastellanos.voxlibris.tts.resolve
 import com.fcastellanos.voxlibris.ui.voices.VoiceSettingsContent
 import com.fcastellanos.voxlibris.ui.voices.VoicesViewModel
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.fcastellanos.voxlibris.R
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.EpubPreferencesEditor
 import org.readium.r2.navigator.preferences.Theme
@@ -74,9 +81,11 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 
+private val SLEEP_TIMER_OPTIONS = listOf(10, 20, 30, 45, 60)
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalReadiumApi::class)
 @Composable
-fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit) {
+fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -> Unit) {
     val visible by viewModel.overlayVisible.collectAsStateWithLifecycle()
     val locator by viewModel.currentLocator.collectAsStateWithLifecycle()
     val positions by viewModel.positions.collectAsStateWithLifecycle()
@@ -86,9 +95,14 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit) {
     var showVoices by rememberSaveable { mutableStateOf(false) }
 
     val readAloud = viewModel.readAloud
-    val ttsStatus by (readAloud?.status ?: remember { kotlinx.coroutines.flow.MutableStateFlow(ReadAloudController.Status.Idle) }).collectAsStateWithLifecycle()
-    val modelState by (readAloud?.modelState ?: remember { kotlinx.coroutines.flow.MutableStateFlow(VoiceModelManager.State.NotInstalled) }).collectAsStateWithLifecycle()
-    val ttsSettings = (readAloud?.preferences?.collectAsStateWithLifecycle()?.value ?: com.fcastellanos.voxlibris.tts.SherpaTtsPreferences()).resolve(null)
+    val activeBookId by readAloud.activeBookId.collectAsStateWithLifecycle()
+    val rawStatus by readAloud.status.collectAsStateWithLifecycle()
+    val ttsActive = activeBookId == viewModel.bookId
+    val ttsStatus = if (ttsActive) rawStatus else ReadAloudManager.Status.Idle
+    val modelState by readAloud.modelState.collectAsStateWithLifecycle()
+    val ttsPreferences by readAloud.preferences.collectAsStateWithLifecycle()
+    val ttsSettings = ttsPreferences.resolve(null)
+    val sleepEndsAt by readAloud.sleepTimerEndsAt.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -106,8 +120,8 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    if (readAloud != null && ttsStatus == ReadAloudController.Status.Idle) {
-                        IconButton(onClick = viewModel::listen) {
+                    if (ttsStatus == ReadAloudManager.Status.Idle) {
+                        IconButton(onClick = onListen) {
                             Icon(painterResource(R.drawable.ic_headphones), contentDescription = stringResource(R.string.listen))
                         }
                     }
@@ -126,7 +140,7 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit) {
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
         ) {
-            if (readAloud == null || ttsStatus == ReadAloudController.Status.Idle) {
+            if (ttsStatus == ReadAloudManager.Status.Idle) {
                 ProgressBar(locator = locator, positions = positions, onSeek = viewModel::goToPosition)
             } else {
                 TtsBar(
@@ -134,17 +148,19 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit) {
                     modelState = modelState,
                     voiceName = SupertonicModel.voice(ttsSettings.voiceId).name,
                     speed = ttsSettings.speed,
+                    sleepEndsAt = sleepEndsAt,
                     onPlayPause = readAloud::togglePlayPause,
                     onPrevious = { readAloud.previous() },
                     onNext = { readAloud.next() },
                     onStop = readAloud::stop,
                     onVoices = { showVoices = true },
+                    onSleepTimer = readAloud::setSleepTimer,
                 )
             }
         }
     }
 
-    if (readAloud != null && ttsStatus == ReadAloudController.Status.NeedsModel &&
+    if (ttsStatus == ReadAloudManager.Status.NeedsModel &&
         modelState !is VoiceModelManager.State.Downloading && modelState !is VoiceModelManager.State.Installing
     ) {
         AlertDialog(
@@ -155,15 +171,6 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit) {
             dismissButton = { TextButton(onClick = readAloud::stop) { Text(stringResource(R.string.cancel)) } },
         )
     }
-    if (showVoices) {
-        val container = (LocalContext.current.applicationContext as VoxLibrisApp).container
-        val sample = stringResource(R.string.sample_sentence)
-        val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample))
-        ModalBottomSheet(onDismissRequest = { showVoices = false }) {
-            VoiceSettingsContent(viewModel = voicesViewModel, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp))
-        }
-    }
-
     if (showToc) {
         TocSheet(
             entries = viewModel.toc,
@@ -183,6 +190,14 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit) {
             onDismiss = { showSettings = false },
         )
     }
+    if (showVoices) {
+        val container = (LocalContext.current.applicationContext as VoxLibrisApp).container
+        val sample = stringResource(R.string.sample_sentence)
+        val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample))
+        ModalBottomSheet(onDismissRequest = { showVoices = false }) {
+            VoiceSettingsContent(viewModel = voicesViewModel, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp))
+        }
+    }
 }
 
 /** Evita que los toques sobre las barras lleguen al navegador y pasen de página. */
@@ -194,15 +209,17 @@ private fun Modifier.consumeTaps(): Modifier = this.clickable(
 
 @Composable
 private fun TtsBar(
-    status: ReadAloudController.Status,
+    status: ReadAloudManager.Status,
     modelState: VoiceModelManager.State,
     voiceName: String,
     speed: Double,
+    sleepEndsAt: Long?,
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onStop: () -> Unit,
     onVoices: () -> Unit,
+    onSleepTimer: (Int?) -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -215,7 +232,7 @@ private fun TtsBar(
                 .navigationBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            val downloading = status == ReadAloudController.Status.NeedsModel &&
+            val downloading = status == ReadAloudManager.Status.NeedsModel &&
                 (modelState is VoiceModelManager.State.Downloading || modelState is VoiceModelManager.State.Installing)
             if (downloading) {
                 val progress = (modelState as? VoiceModelManager.State.Downloading)?.progress
@@ -226,39 +243,94 @@ private fun TtsBar(
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(stringResource(R.string.installing_voices), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
                 }
-            } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconButton(onClick = onStop) { Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.stop_listening)) }
-                    IconButton(onClick = onPrevious) { Icon(painterResource(R.drawable.ic_skip_previous), contentDescription = stringResource(R.string.previous_sentence)) }
-                    FilledIconButton(onClick = onPlayPause) {
-                        val playing = status == ReadAloudController.Status.Playing || status == ReadAloudController.Status.Preparing
-                        Icon(
-                            painterResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play),
-                            contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                        )
-                    }
-                    IconButton(onClick = onNext) { Icon(painterResource(R.drawable.ic_skip_next), contentDescription = stringResource(R.string.next_sentence)) }
-                    val locale = LocalConfiguration.current.locales[0]
-                    TextButton(onClick = onVoices) {
-                        Text("$voiceName · ${String.format(locale, "%.1f", speed)}×", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                val statusText = when (status) {
-                    ReadAloudController.Status.Preparing -> stringResource(R.string.tts_preparing)
-                    ReadAloudController.Status.Playing -> stringResource(R.string.tts_playing)
-                    ReadAloudController.Status.Paused -> stringResource(R.string.tts_paused)
-                    ReadAloudController.Status.Ended -> stringResource(R.string.tts_ended)
-                    is ReadAloudController.Status.Error -> stringResource(R.string.tts_error, status.message)
-                    else -> ""
-                }
-                if (statusText.isNotEmpty()) {
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (status is ReadAloudController.Status.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp),
+                return@Column
+            }
+            val locale = LocalConfiguration.current.locales[0]
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                IconButton(onClick = onStop) { Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.stop_listening)) }
+                IconButton(onClick = onPrevious) { Icon(painterResource(R.drawable.ic_skip_previous), contentDescription = stringResource(R.string.previous_sentence)) }
+                FilledIconButton(onClick = onPlayPause) {
+                    val playing = status == ReadAloudManager.Status.Playing || status == ReadAloudManager.Status.Preparing
+                    Icon(
+                        painterResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play),
+                        contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
                     )
                 }
+                IconButton(onClick = onNext) { Icon(painterResource(R.drawable.ic_skip_next), contentDescription = stringResource(R.string.next_sentence)) }
+                SleepTimerButton(active = sleepEndsAt != null, onSelect = onSleepTimer)
+                TextButton(onClick = onVoices) {
+                    Text("$voiceName · ${String.format(locale, "%.1f", speed)}×", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            val statusText = buildString {
+                append(
+                    when (status) {
+                        ReadAloudManager.Status.Preparing -> stringResource(R.string.tts_preparing)
+                        ReadAloudManager.Status.Playing -> stringResource(R.string.tts_playing)
+                        ReadAloudManager.Status.Paused -> stringResource(R.string.tts_paused)
+                        ReadAloudManager.Status.Ended -> stringResource(R.string.tts_ended)
+                        is ReadAloudManager.Status.Error -> stringResource(R.string.tts_error, status.message)
+                        else -> ""
+                    },
+                )
+                sleepEndsAt?.let { endsAt ->
+                    val remaining = remainingMinutes(endsAt)
+                    if (isNotEmpty()) append(" · ")
+                    append(stringResource(R.string.sleep_timer_remaining, remaining))
+                }
+            }
+            if (statusText.isNotEmpty()) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (status is ReadAloudManager.Status.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Minutos restantes hasta `endsAt`, actualizados cada 20 segundos mientras el temporizador esté activo. */
+@Composable
+private fun remainingMinutes(endsAt: Long): Int {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(endsAt) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(20_000)
+        }
+    }
+    return (((endsAt - now) + 59_999) / 60_000).toInt().coerceAtLeast(0)
+}
+
+@Composable
+private fun SleepTimerButton(active: Boolean, onSelect: (Int?) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                painterResource(R.drawable.ic_timer),
+                contentDescription = stringResource(R.string.sleep_timer),
+                tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.sleep_timer_off)) },
+                onClick = {
+                    onSelect(null)
+                    expanded = false
+                },
+            )
+            SLEEP_TIMER_OPTIONS.forEach { minutes ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sleep_timer_minutes, minutes)) },
+                    onClick = {
+                        onSelect(minutes)
+                        expanded = false
+                    },
+                )
             }
         }
     }
@@ -404,7 +476,6 @@ private fun SettingsSheet(
                 onDecrease = { editor.fontSize.decrement(); commit() },
                 onIncrease = { editor.fontSize.increment(); commit() },
             )
-
             SwitchRow(
                 label = stringResource(R.string.scroll_mode),
                 checked = editor.scroll.effectiveValue,

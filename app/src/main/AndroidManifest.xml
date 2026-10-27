@@ -3,6 +3,11 @@
 
     <!-- Solo para descargar el paquete de voces una vez; la síntesis es 100 % local. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lectura en voz alta con la pantalla apagada: servicio en primer plano de tipo multimedia -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:name=".VoxLibrisApp"
@@ -32,6 +37,15 @@
             android:name=".ui.reader.ReaderActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
+
+        <service
+            android:name=".tts.ReadAloudService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

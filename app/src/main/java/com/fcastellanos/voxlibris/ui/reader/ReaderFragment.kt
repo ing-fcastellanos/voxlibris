@@ -1,6 +1,9 @@
 package com.fcastellanos.voxlibris.ui.reader
 
+import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.pm.PackageManager
+import android.os.Build
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -8,7 +11,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.ComposeView
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
@@ -24,8 +29,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.VoxLibrisApp
 import com.fcastellanos.voxlibris.di.AppContainer
+import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import org.readium.r2.navigator.Decoration
@@ -51,6 +59,20 @@ class ReaderFragment : Fragment() {
 
     private var navigator: EpubNavigatorFragment? = null
     private var navigatorContainer: FragmentContainerView? = null
+
+    /** En Android 13+ la notificación con controles requiere permiso; se pide al tocar "Escuchar". */
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.listen() }
+
+    private fun onListen() {
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.listen()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val session = container.readerRepository[bookId]
@@ -84,7 +106,7 @@ class ReaderFragment : Fragment() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 VoxLibrisTheme {
-                    ReaderOverlay(viewModel = viewModel, onBack = { requireActivity().finish() })
+                    ReaderOverlay(viewModel = viewModel, onBack = { requireActivity().finish() }, onListen = ::onListen)
                 }
             }
         }
@@ -134,18 +156,22 @@ class ReaderFragment : Fragment() {
                 }
                 launch { viewModel.externalLinks.collect { openExternal(it) } }
                 launch { viewModel.overlayVisible.collect { setSystemBarsVisible(it) } }
-                viewModel.readAloud?.let { readAloud ->
-                    launch {
-                        readAloud.highlight.collect { locator ->
-                            val decorations = locator?.let {
-                                listOf(Decoration(id = TTS_DECORATION_ID, locator = it, style = Decoration.Style.Highlight(tint = TTS_HIGHLIGHT_TINT, isActive = true)))
-                            } ?: emptyList()
-                            navigator.applyDecorations(decorations, TTS_DECORATION_GROUP)
-                        }
+                val readAloud = viewModel.readAloud
+                val bookId = bookId
+                launch {
+                    combine(readAloud.activeBookId, readAloud.highlight) { activeId, locator ->
+                        if (activeId == bookId) locator else null
+                    }.distinctUntilChanged().collect { locator ->
+                        val decorations = locator?.let {
+                            listOf(Decoration(id = TTS_DECORATION_ID, locator = it, style = Decoration.Style.Highlight(tint = TTS_HIGHLIGHT_TINT, isActive = true)))
+                        } ?: emptyList()
+                        navigator.applyDecorations(decorations, TTS_DECORATION_GROUP)
                     }
-                    launch {
-                        readAloud.pageSync.sample(PAGE_SYNC_MS).collect { locator ->
-                            if (readAloud.status.value == ReadAloudController.Status.Playing) navigator.go(locator, animated = true)
+                }
+                launch {
+                    readAloud.pageSync.sample(PAGE_SYNC_MS).collect { locator ->
+                        if (readAloud.isActiveFor(bookId) && readAloud.status.value == ReadAloudManager.Status.Playing) {
+                            navigator.go(locator, animated = true)
                         }
                     }
                 }

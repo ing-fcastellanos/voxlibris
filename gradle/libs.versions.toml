@@ -43,6 +43,7 @@ readium-navigator = { group = "org.readium.kotlin-toolkit", name = "readium-navi
 readium-navigator-media-tts = { group = "org.readium.kotlin-toolkit", name = "readium-navigator-media-tts", version.ref = "readium" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commons-compress" }
 androidx-media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "androidx-media3" }
+androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "androidx-media3" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-junit" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test-runner" }

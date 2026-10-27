@@ -4,6 +4,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.SystemClock
+import android.util.Log
 import com.k2fsa.sherpa.onnx.OfflineTts
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -143,7 +144,10 @@ class SherpaTtsEngine(
         val start = SystemClock.elapsedRealtime()
         val generated = runtime.synthesize(tts, clean, settings.voiceId, settings.speed, steps, languageCode)
         val samples = TtsMath.trimTrailingSilence(generated.samples, generated.sampleRate)
-        rtf.update((SystemClock.elapsedRealtime() - start) / 1000.0, samples.size.toDouble() / generated.sampleRate)
+        val synthSeconds = (SystemClock.elapsedRealtime() - start) / 1000.0
+        val audioSeconds = samples.size.toDouble() / generated.sampleRate
+        rtf.update(synthSeconds, audioSeconds)
+        Log.d(TAG, "Frase sintetizada: %.2f s de audio en %.2f s (RTF=%.2f, pasos=%d, voz=%d, lang=%s, lead=%.1f s)".format(audioSeconds, synthSeconds, if (audioSeconds > 0) synthSeconds / audioSeconds else 0.0, steps, settings.voiceId, languageCode, TtsMath.leadSeconds(rtf.value)))
         return samples to generated.sampleRate
     }
 
@@ -243,6 +247,7 @@ class SherpaTtsEngine(
     }
 
     private companion object {
+        const val TAG = "VoxLibris.TTS"
         const val BUFFER_SECONDS = 3
     }
 }

@@ -18,8 +18,8 @@ El proyecto está en construcción. La exploración técnica ya cerró y la base
 | 1 | Entorno: Android SDK, Gradle, matriz de versiones | Hecha |
 | 2 | Esqueleto: Compose, Readium, sherpa-onnx, Room, importación de EPUB y biblioteca | Hecha; pendiente de prueba en teléfono |
 | 3 | Lector EPUB: navegador de Readium, índice, ajustes de lectura, progreso | Hecha; pendiente de prueba en teléfono |
-| 4 | Voz: motor `TtsEngine` de Readium sobre sherpa-onnx + Supertonic 3, catálogo de lectores | Compila y pasan los tests; pendiente de prueba en teléfono |
-| 5 | Reproducción en segundo plano, controles multimedia, temporizador de sueño | Pendiente |
+| 4 | Voz: motor `TtsEngine` de Readium sobre sherpa-onnx + Supertonic 3, catálogo de lectores | Hecha; pendiente de prueba en teléfono |
+| 5 | Reproducción en segundo plano, controles multimedia, temporizador de sueño | Compila y pasan los tests; pendiente de prueba en teléfono |
 | 6 | Opcional: Kokoro con fonetizador español propio; exponer las voces como motor TTS del sistema | Pendiente |
 
 ## Qué hace hoy
@@ -32,6 +32,7 @@ El proyecto está en construcción. La exploración técnica ya cerró y la base
 - **Lectura en voz alta** con el botón de auriculares: la frase que suena se resalta y la página la sigue. Controles de pausa, frase anterior y siguiente; la lectura se encadena sin silencios entre frases.
 - **Catálogo de lectores**: diez voces (cinco femeninas, cinco masculinas) con muestra de audio, velocidad de 0,6× a 1,8× y calidad Auto, Rápida o Alta. "Auto" mide el teléfono una vez y elige 4 u 8 pasos de difusión.
 - Las voces se descargan dentro de la app una sola vez (123 MB, con verificación SHA-256) y después todo funciona sin conexión.
+- **Segundo plano**: la lectura sigue con la pantalla apagada o fuera del lector, con controles en la notificación y la pantalla de bloqueo (Media3 `MediaSessionService`). La biblioteca muestra una barra "Leyendo" para volver al libro. Temporizador de sueño de 10 a 60 minutos. El progreso se guarda también mientras se escucha en segundo plano.
 
 ## Cómo funciona
 
@@ -92,6 +93,8 @@ app/src/main/java/com/fcastellanos/voxlibris/
 │   ├── SherpaTtsRuntime.kt Instancia compartida del modelo + calibración del teléfono
 │   ├── VoiceModelManager.kt  Descarga, verifica e instala el paquete de voces
 │   ├── SherpaTtsPreferences.kt  Preferencias, ajustes, voces y errores del motor
+│   ├── ReadAloudManager.kt Sesión de lectura en voz alta a nivel app: TtsNavigator, foco de audio, wake lock, temporizador, progreso
+│   ├── ReadAloudService.kt MediaSessionService de Media3: notificación, pantalla de bloqueo, primer plano
 │   └── TtsMath.kt          Recorte de silencio, rangos de palabra, estimación de tiempo real
 └── ui/
     ├── theme/              Material 3 con color dinámico
@@ -126,6 +129,8 @@ Con un teléfono conectado por USB y depuración activada, instalar y correr el 
 ```
 
 Para probar la importación a mano hay un EPUB pequeño en `exploracion/libro-de-prueba.epub`.
+
+La guía paso a paso para validar las cinco fases en un teléfono está en [docs/guia-de-pruebas.md](docs/guia-de-pruebas.md).
 
 ## Modelos de voz
 

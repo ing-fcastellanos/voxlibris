@@ -1,7 +1,7 @@
 package com.fcastellanos.voxlibris.tts
 
 import android.content.Context
-import java.io.BufferedInputStream
+import android.util.Log
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -16,8 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 
 /**
  * Descarga, verifica e instala el paquete de voces en el almacenamiento privado de la app.
@@ -51,12 +49,15 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
         }
         job = scope.launch(Dispatchers.IO) {
             try {
+                Log.i(TAG, "Descargando voces desde ${SupertonicModel.URL}")
                 downloadAndInstall()
+                Log.i(TAG, "Voces instaladas en $modelDir")
                 _state.value = State.Ready(modelDir)
             } catch (e: CancellationException) {
                 _state.value = State.NotInstalled
                 throw e
             } catch (e: Exception) {
+                Log.w(TAG, "Falló la instalación de voces", e)
                 _state.value = State.Failed(e.message ?: e.javaClass.simpleName)
             }
         }
@@ -82,7 +83,7 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
                 it.deleteRecursively()
                 it.mkdirs()
             }
-            extract(archive, staging)
+            ArchiveExtractor.extractTarBz2(archive, staging)
             if (!isInstalled(staging)) throw IOException("El paquete no contiene todos los archivos esperados")
             modelDir.deleteRecursively()
             if (!staging.renameTo(modelDir)) throw IOException("No se pudo mover el modelo a su carpeta")
@@ -129,21 +130,8 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
         }
     }
 
-    private fun extract(archive: File, into: File) {
-        val root = into.canonicalPath
-        TarArchiveInputStream(BZip2CompressorInputStream(BufferedInputStream(archive.inputStream()))).use { tar ->
-            while (true) {
-                val entry = tar.nextEntry ?: break
-                if (entry.isDirectory) continue
-                // El paquete trae todo dentro de una carpeta raíz; la descartamos.
-                val relative = entry.name.substringAfter('/', missingDelimiterValue = "")
-                if (relative.isEmpty()) continue
-                val file = File(into, relative)
-                if (!file.canonicalPath.startsWith(root)) throw IOException("Ruta inválida en el paquete: ${entry.name}")
-                file.parentFile?.mkdirs()
-                file.outputStream().use { tar.copyTo(it) }
-            }
-        }
+    private companion object {
+        const val TAG = "VoxLibris.TTS"
     }
 
     private fun isInstalled(dir: File): Boolean = SupertonicModel.FILES.all { File(dir, it).length() > 0 }

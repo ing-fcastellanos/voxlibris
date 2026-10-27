@@ -42,11 +42,19 @@ class ReaderRepository(
 ) {
 
     private val sessions = mutableMapOf<Long, ReaderSession>()
+    private val refs = mutableMapOf<Long, Int>()
 
     operator fun get(bookId: Long): ReaderSession? = synchronized(sessions) { sessions[bookId] }
 
+    /**
+     * Abre la publicación (o reutiliza la sesión existente) y suma una referencia.
+     * Cada `open`/`retain` debe emparejarse con un `release`; la publicación se cierra al llegar a cero.
+     */
     suspend fun open(bookId: Long): OpenBookResult = withContext(Dispatchers.IO) {
-        get(bookId)?.let { return@withContext OpenBookResult.Success(it) }
+        get(bookId)?.let {
+            retain(bookId)
+            return@withContext OpenBookResult.Success(it)
+        }
 
         val entity = books.get(bookId)
             ?: return@withContext OpenBookResult.Failure(OpenBookError.BookNotFound)
@@ -73,11 +81,32 @@ class ReaderRepository(
             navigatorFactory = EpubNavigatorFactory(publication),
             initialLocator = initialLocator,
         )
-        synchronized(sessions) { sessions[bookId] = session }
+        synchronized(sessions) {
+            sessions[bookId] = session
+            refs[bookId] = (refs[bookId] ?: 0) + 1
+        }
         OpenBookResult.Success(session)
     }
 
-    fun close(bookId: Long) {
-        synchronized(sessions) { sessions.remove(bookId) }?.publication?.close()
+    /** Suma una referencia a una sesión ya abierta (por ejemplo, la lectura en voz alta en segundo plano). */
+    fun retain(bookId: Long) {
+        synchronized(sessions) {
+            if (sessions.containsKey(bookId)) refs[bookId] = (refs[bookId] ?: 0) + 1
+        }
+    }
+
+    /** Resta una referencia; cierra la publicación cuando nadie más la usa. */
+    fun release(bookId: Long) {
+        val toClose = synchronized(sessions) {
+            val remaining = (refs[bookId] ?: 1) - 1
+            if (remaining > 0) {
+                refs[bookId] = remaining
+                null
+            } else {
+                refs.remove(bookId)
+                sessions.remove(bookId)
+            }
+        }
+        toClose?.publication?.close()
     }
 }

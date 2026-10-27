@@ -79,4 +79,12 @@
     <string name="tts_need_model_title">Descargar voces</string>
     <string name="tts_need_model_body">Para escuchar el libro hay que descargar las voces una sola vez (%1$d MB). ¿Descargar ahora?</string>
     <string name="sample_sentence">Hola, soy %1$s. Puedo leer tus libros en voz alta, sin conexión a internet.</string>
+
+    <!-- Segundo plano -->
+    <string name="sleep_timer">Temporizador de sueño</string>
+    <string name="sleep_timer_off">Sin temporizador</string>
+    <string name="sleep_timer_minutes">%1$d minutos</string>
+    <string name="sleep_timer_remaining">Se detiene en %1$d min</string>
+    <string name="now_playing">Leyendo: %1$s</string>
+    <string name="open_reader">Abrir</string>
 </resources>
