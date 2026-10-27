@@ -2,6 +2,8 @@ package com.fcastellanos.voxlibris.data
 
 import com.fcastellanos.voxlibris.data.db.BookEntity
 import java.io.File
+import org.json.JSONObject
+import org.readium.r2.shared.publication.Locator
 
 /** Libro tal como lo consume la interfaz. */
 data class Book(
@@ -13,6 +15,8 @@ data class Book(
     val coverFile: File?,
     val addedAt: Long,
     val progression: String?,
+    /** Porcentaje leído (0 a 100) según el último Locator guardado, o null si nunca se abrió. */
+    val progressPercent: Int?,
 )
 
 internal fun BookEntity.toBook(storage: LibraryStorage): Book = Book(
@@ -24,4 +28,9 @@ internal fun BookEntity.toBook(storage: LibraryStorage): Book = Book(
     coverFile = storage.coverFile(coverFileName),
     addedAt = createdAt,
     progression = progression,
+    progressPercent = progression?.let { json ->
+        runCatching { Locator.fromJSON(JSONObject(json))?.locations?.totalProgression }
+            .getOrNull()
+            ?.let { (it * 100).toInt().coerceIn(0, 100) }
+    },
 )

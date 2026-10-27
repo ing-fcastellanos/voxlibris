@@ -67,7 +67,7 @@ val sherpaOnnxAarName = "sherpa-onnx-static-link-onnxruntime-$sherpaOnnxVersion.
 val sherpaOnnxAarSha256 = "07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575"
 val sherpaOnnxAarFile = layout.projectDirectory.file("libs/$sherpaOnnxAarName").asFile
 
-val downloadSherpaOnnx by tasks.registering {
+val downloadSherpaOnnx = tasks.register("downloadSherpaOnnx") {
     description = "Descarga el AAR de sherpa-onnx a app/libs si todavía no está."
     outputs.file(sherpaOnnxAarFile)
     onlyIf { !sherpaOnnxAarFile.exists() }
@@ -109,6 +109,7 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.coroutines.android)
 

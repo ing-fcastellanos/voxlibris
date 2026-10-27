@@ -56,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.data.Book
 import com.fcastellanos.voxlibris.data.EpubImporter
+import com.fcastellanos.voxlibris.reading.OpenBookError
+import com.fcastellanos.voxlibris.ui.reader.ReaderActivity
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -67,6 +69,7 @@ private val EPUB_MIME_TYPES = arrayOf("application/epub+zip")
 fun LibraryScreen(viewModel: LibraryViewModel) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     val progress by viewModel.importProgress.collectAsStateWithLifecycle()
+    val openingBookId by viewModel.openingBookId.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     var bookToDelete by remember { mutableStateOf<Book?>(null) }
@@ -74,6 +77,13 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(message.toText(context))
+        }
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is UiEvent.OpenReader -> context.startActivity(ReaderActivity.intent(context, event.bookId))
+            }
         }
     }
 
@@ -98,6 +108,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 .fillMaxSize(),
         ) {
             progress?.let { ImportBanner(it) }
+            if (openingBookId != null) OpeningBanner()
             if (books.isEmpty()) {
                 EmptyLibrary(Modifier.weight(1f))
             } else {
@@ -135,6 +146,18 @@ private fun ImportBanner(progress: ImportProgress) {
         LinearProgressIndicator(Modifier.fillMaxWidth())
         Text(
             text = stringResource(R.string.importing, progress.current, progress.total),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun OpeningBanner() {
+    Column(Modifier.fillMaxWidth()) {
+        LinearProgressIndicator(Modifier.fillMaxWidth())
+        Text(
+            text = stringResource(R.string.opening_book),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
@@ -218,6 +241,13 @@ private fun BookCard(book: Book, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        book.progressPercent?.let { percent ->
+            Text(
+                text = stringResource(R.string.progress_percent, percent),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
@@ -262,7 +292,12 @@ private fun CoverImage(file: File?, title: String, modifier: Modifier = Modifier
 private fun UiMessage.toText(context: Context): String = when (this) {
     is UiMessage.Imported -> context.resources.getQuantityString(R.plurals.msg_imported, count, count)
     is UiMessage.Deleted -> context.getString(R.string.msg_deleted, title)
-    UiMessage.ReaderNotReady -> context.getString(R.string.msg_reader_not_ready)
+    is UiMessage.OpenFailed -> when (val e = error) {
+        OpenBookError.BookNotFound -> context.getString(R.string.msg_book_not_found)
+        OpenBookError.FileMissing -> context.getString(R.string.msg_book_file_missing)
+        OpenBookError.NotSupported -> context.getString(R.string.msg_not_supported)
+        is OpenBookError.Readium -> context.getString(R.string.msg_open_failed, e.message)
+    }
     is UiMessage.ImportFailed -> when (val e = error) {
         EpubImporter.ImportError.CannotRead -> context.getString(R.string.msg_cannot_read)
         is EpubImporter.ImportError.NotAnEpub ->

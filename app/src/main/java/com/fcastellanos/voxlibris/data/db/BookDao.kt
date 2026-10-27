@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookDao {
 
-    @Query("SELECT * FROM books ORDER BY created_at DESC")
+    @Query("SELECT * FROM books ORDER BY COALESCE(last_opened_at, created_at) DESC")
     fun observeAll(): Flow<List<BookEntity>>
 
     @Query("SELECT * FROM books WHERE id = :id")

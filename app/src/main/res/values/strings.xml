@@ -16,11 +16,33 @@
     <string name="msg_not_epub_detected">El archivo no es un EPUB (detectado: %1$s)</string>
     <string name="msg_open_failed">No se pudo abrir el EPUB: %1$s</string>
     <string name="msg_already_in_library">“%1$s” ya está en la biblioteca</string>
-    <string name="msg_reader_not_ready">El lector llega en la próxima fase</string>
     <string name="delete_dialog_title">¿Eliminar libro?</string>
     <string name="delete_dialog_body">“%1$s” se quitará de la biblioteca y se borrará su archivo.</string>
     <string name="delete">Eliminar</string>
     <string name="cancel">Cancelar</string>
     <string name="unknown_title">Sin título</string>
     <string name="cover_of">Portada de %1$s</string>
+
+    <!-- Lector -->
+    <string name="opening_book">Abriendo libro…</string>
+    <string name="msg_book_not_found">El libro ya no está en la biblioteca</string>
+    <string name="msg_book_file_missing">No se encuentra el archivo del libro</string>
+    <string name="msg_not_supported">Este archivo no es un EPUB compatible</string>
+    <string name="back">Volver</string>
+    <string name="toc">Índice</string>
+    <string name="toc_empty">Este libro no tiene índice</string>
+    <string name="reading_settings">Ajustes de lectura</string>
+    <string name="theme">Tema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_sepia">Sepia</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="font_size">Tamaño de letra</string>
+    <string name="decrease">Reducir</string>
+    <string name="increase">Aumentar</string>
+    <string name="scroll_mode">Desplazamiento continuo</string>
+    <string name="publisher_styles">Respetar estilos del editor</string>
+    <string name="line_height">Interlineado</string>
+    <string name="position_of">Posición %1$d de %2$d</string>
+    <string name="progress_percent">%1$d %%</string>
+    <string name="reading_position">Posición de lectura</string>
 </resources>

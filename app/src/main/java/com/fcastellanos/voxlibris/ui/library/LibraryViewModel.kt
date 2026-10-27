@@ -10,6 +10,9 @@ import com.fcastellanos.voxlibris.data.Book
 import com.fcastellanos.voxlibris.data.BookRepository
 import com.fcastellanos.voxlibris.data.EpubImporter
 import com.fcastellanos.voxlibris.di.AppContainer
+import com.fcastellanos.voxlibris.reading.OpenBookError
+import com.fcastellanos.voxlibris.reading.OpenBookResult
+import com.fcastellanos.voxlibris.reading.ReaderRepository
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +29,11 @@ sealed interface UiMessage {
     data class Imported(val count: Int) : UiMessage
     data class ImportFailed(val error: EpubImporter.ImportError) : UiMessage
     data class Deleted(val title: String) : UiMessage
-    data object ReaderNotReady : UiMessage
+    data class OpenFailed(val error: OpenBookError) : UiMessage
+}
+
+sealed interface UiEvent {
+    data class OpenReader(val bookId: Long) : UiEvent
 }
 
 data class ImportProgress(val current: Int, val total: Int)
@@ -34,6 +41,7 @@ data class ImportProgress(val current: Int, val total: Int)
 class LibraryViewModel(
     private val repository: BookRepository,
     private val importer: EpubImporter,
+    private val readerRepository: ReaderRepository,
 ) : ViewModel() {
 
     val books: StateFlow<List<Book>> = repository.books
@@ -44,6 +52,12 @@ class LibraryViewModel(
 
     private val _messages = Channel<UiMessage>(Channel.BUFFERED)
     val messages: Flow<UiMessage> = _messages.receiveAsFlow()
+
+    private val _events = Channel<UiEvent>(Channel.BUFFERED)
+    val events: Flow<UiEvent> = _events.receiveAsFlow()
+
+    private val _openingBookId = MutableStateFlow<Long?>(null)
+    val openingBookId: StateFlow<Long?> = _openingBookId.asStateFlow()
 
     /** Serializa las importaciones para que el indicador de progreso sea coherente. */
     private val importLock = Mutex()
@@ -73,14 +87,25 @@ class LibraryViewModel(
         }
     }
 
-    fun openBook(@Suppress("UNUSED_PARAMETER") book: Book) {
-        // El lector se conecta en la siguiente fase.
-        viewModelScope.launch { _messages.send(UiMessage.ReaderNotReady) }
+    /** Abre la publicación con Readium y, si funciona, pide a la pantalla que lance el lector. */
+    fun openBook(book: Book) {
+        if (_openingBookId.value != null) return
+        viewModelScope.launch {
+            _openingBookId.value = book.id
+            try {
+                when (val result = readerRepository.open(book.id)) {
+                    is OpenBookResult.Success -> _events.send(UiEvent.OpenReader(book.id))
+                    is OpenBookResult.Failure -> _messages.send(UiMessage.OpenFailed(result.error))
+                }
+            } finally {
+                _openingBookId.value = null
+            }
+        }
     }
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(container.bookRepository, container.importer) }
+            initializer { LibraryViewModel(container.bookRepository, container.importer, container.readerRepository) }
         }
     }
 }

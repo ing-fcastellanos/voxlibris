@@ -24,6 +24,11 @@
                 <data android:mimeType="application/epub+zip" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.reader.ReaderActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
     </application>
 
 </manifest>

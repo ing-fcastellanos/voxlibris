@@ -16,11 +16,19 @@ El proyecto está en construcción. La exploración técnica ya cerró y la base
 |---|---|---|
 | 0 | Exploración de motores TTS on-device y prueba de escucha en español | Hecha ([detalle](exploracion/tts-test/README.md)) |
 | 1 | Entorno: Android SDK, Gradle, matriz de versiones | Hecha |
-| 2 | Esqueleto: Compose, Readium, sherpa-onnx, Room, importación de EPUB y biblioteca | Compila y pasan los tests; pendiente de prueba en teléfono |
-| 3 | Lector EPUB: navegador de Readium, índice, ajustes de lectura, progreso | Pendiente |
+| 2 | Esqueleto: Compose, Readium, sherpa-onnx, Room, importación de EPUB y biblioteca | Hecha; pendiente de prueba en teléfono |
+| 3 | Lector EPUB: navegador de Readium, índice, ajustes de lectura, progreso | Compila y pasan los tests; pendiente de prueba en teléfono |
 | 4 | Voz: motor `TtsEngine` de Readium sobre sherpa-onnx + Supertonic 3, catálogo de lectores | Pendiente |
 | 5 | Reproducción en segundo plano, controles multimedia, temporizador de sueño | Pendiente |
 | 6 | Opcional: Kokoro con fonetizador español propio; exponer las voces como motor TTS del sistema | Pendiente |
+
+## Qué hace hoy
+
+- Importa EPUB desde el almacenamiento (o con "Abrir con VoxLibris"), con portada, metadatos y detección de duplicados.
+- Lector paginado o de desplazamiento continuo sobre el navegador de Readium: toque en los bordes para pasar de página, toque en el centro para mostrar u ocultar la interfaz.
+- Índice del libro con el capítulo actual resaltado, barra de progreso con salto a cualquier posición.
+- Ajustes de lectura persistentes: tema claro, sepia u oscuro; tamaño de letra; interlineado; respetar o no los estilos del editor.
+- Guarda la posición de lectura por libro y la retoma al reabrir; la biblioteca ordena por último leído y muestra el porcentaje.
 
 ## Cómo funciona
 
@@ -72,9 +80,13 @@ app/src/main/java/com/fcastellanos/voxlibris/
 │   ├── EpubImporter.kt     Copia, valida, extrae metadatos y portada, inserta
 │   ├── BookRepository.kt   Flujo de libros y borrado
 │   └── LibraryStorage.kt   Carpetas privadas (books/, covers/)
+├── reading/
+│   ├── ReaderRepository.kt Publicaciones abiertas (sobreviven a rotaciones)
+│   └── ReadingPreferencesStore.kt  Preferencias de lectura persistidas
 └── ui/
     ├── theme/              Material 3 con color dinámico
-    └── library/            Pantalla de biblioteca y su ViewModel
+    ├── library/            Pantalla de biblioteca y su ViewModel
+    └── reader/             ReaderActivity + ReaderFragment (aloja el navegador de Readium) + overlay Compose
 app/src/androidTest/        Test instrumentado del importador con un EPUB de muestra
 exploracion/                Prueba de escucha de TTS (script, resultados) y EPUB de prueba
 tools/make_sample_epub.py   Genera el EPUB de muestra (solo librería estándar de Python)
