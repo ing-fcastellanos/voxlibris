@@ -113,6 +113,7 @@ Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto de
 | 3.12 | Escuchar el libro de prueba hasta el final | Al terminar el último párrafo la lectura se detiene y la barra de voz desaparece. |
 | 3.13 | Comparar calidad "Rápida" y "Alta" con la misma frase | "Rápida" responde antes; "Alta" suena algo más limpia. En "Auto", el logcat muestra `pasos=4` si el RTF calibrado fue mayor que 0,5 y `pasos=8` si no. |
 | 3.15 | Velocidad 1,6× a 2,0× | Se entienden todas las palabras y se oye completo el final de cada párrafo. El modelo sintetiza como mucho a 1,3× y el resto lo pone el reproductor estirando el audio sin cambiar el tono. |
+| 3.17 | Mantener pulsada una palabra del texto | Aparece el menú de selección con "Leer desde acá", "Copiar" y "Compartir". "Leer desde acá" arranca la lectura en voz alta en esa frase (o la mueve ahí si ya estaba leyendo); "Copiar" deja el texto en el portapapeles; "Compartir" abre el selector de apps. |
 | 3.16 | Frases largas con comas | Se oyen como una sola frase; en las comas puede notarse una pausa algo marcada (la frase se sintetiza en trozos cortados solo donde hay puntuación). No debe haber pausas donde el texto no las tiene. |
 | 3.14 | Un EPUB en inglés | La voz lee en inglés (`lang=en` en logcat). |
 

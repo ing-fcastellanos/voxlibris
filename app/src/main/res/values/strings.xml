@@ -87,4 +87,10 @@
     <string name="sleep_timer_remaining">Se detiene en %1$d min</string>
     <string name="now_playing">Leyendo: %1$s</string>
     <string name="open_reader">Abrir</string>
+
+    <!-- Selección de texto en el lector -->
+    <string name="read_from_here">Leer desde acá</string>
+    <string name="copy">Copiar</string>
+    <string name="share">Compartir</string>
+    <string name="text_copied">Texto copiado</string>
 </resources>

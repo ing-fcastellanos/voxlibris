@@ -92,6 +92,11 @@ class ReaderViewModel(
         readAloud.start(bookId, _currentLocator.value)
     }
 
+    /** Empieza (o mueve) la lectura en voz alta a un punto elegido por el usuario, por ejemplo una selección. */
+    fun listenFrom(locator: Locator) {
+        readAloud.start(bookId, locator)
+    }
+
     fun onLocatorChanged(locator: Locator) {
         _currentLocator.value = locator
         saveJob?.cancel()

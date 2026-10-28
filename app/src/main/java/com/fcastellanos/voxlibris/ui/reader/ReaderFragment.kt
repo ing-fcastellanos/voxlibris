@@ -2,15 +2,21 @@ package com.fcastellanos.voxlibris.ui.reader
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.view.ActionMode
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
@@ -41,8 +47,10 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.navigator.preferences.Theme
+import org.readium.r2.navigator.util.BaseActionModeCallback
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
 /**
@@ -60,18 +68,80 @@ class ReaderFragment : Fragment() {
     private var navigator: EpubNavigatorFragment? = null
     private var navigatorContainer: FragmentContainerView? = null
 
+    /** Punto elegido para empezar a leer mientras se espera el permiso de notificaciones. */
+    private var pendingListenFrom: Locator? = null
+
     /** En Android 13+ la notificación con controles requiere permiso; se pide al tocar "Escuchar". */
     private val notificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.listen() }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { startListening(pendingListenFrom) }
 
-    private fun onListen() {
+    private fun onListen() = requestListening(null)
+
+    private fun requestListening(from: Locator?) {
         val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         if (needsPermission) {
+            pendingListenFrom = from
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            viewModel.listen()
+            startListening(from)
         }
+    }
+
+    private fun startListening(from: Locator?) {
+        pendingListenFrom = null
+        if (from != null) viewModel.listenFrom(from) else viewModel.listen()
+    }
+
+    /**
+     * Menú que aparece al mantener pulsado texto. Readium reemplaza el menú de Chromium por este,
+     * así que las opciones clásicas (copiar, compartir) también van acá.
+     */
+    private val selectionActionMode = object : BaseActionModeCallback() {
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            menu.add(Menu.NONE, MENU_READ_FROM_HERE, 0, R.string.read_from_here)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+            menu.add(Menu.NONE, MENU_COPY, 1, R.string.copy)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+            menu.add(Menu.NONE, MENU_SHARE, 2, R.string.share)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+            return true
+        }
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            when (item.itemId) {
+                MENU_READ_FROM_HERE -> withSelection { selection -> requestListening(selection.locator) }
+                MENU_COPY -> withSelection { selection -> copyToClipboard(selection.locator.text.highlight.orEmpty()) }
+                MENU_SHARE -> withSelection { selection -> shareText(selection.locator.text.highlight.orEmpty()) }
+                else -> return false
+            }
+            mode.finish()
+            return true
+        }
+    }
+
+    private fun withSelection(block: (org.readium.r2.navigator.Selection) -> Unit) {
+        val navigator = navigator ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val selection = navigator.currentSelection()
+            navigator.clearSelection()
+            selection?.let(block)
+        }
+    }
+
+    private fun copyToClipboard(text: String) {
+        if (text.isBlank()) return
+        val clipboard = requireContext().getSystemService(ClipboardManager::class.java) ?: return
+        clipboard.setPrimaryClip(ClipData.newPlainText(viewModel.title, text))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(requireContext(), R.string.text_copied, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun shareText(text: String) {
+        if (text.isBlank()) return
+        val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        startActivity(Intent.createChooser(intent, getString(R.string.share)))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,6 +157,9 @@ class ReaderFragment : Fragment() {
             initialLocator = session.initialLocator,
             initialPreferences = viewModel.preferences.value,
             listener = viewModel,
+            configuration = EpubNavigatorFragment.Configuration {
+                selectionActionModeCallback = selectionActionMode
+            },
         )
         super.onCreate(savedInstanceState)
     }
@@ -212,6 +285,9 @@ class ReaderFragment : Fragment() {
 
     companion object {
         const val TAG = "reader"
+        private const val MENU_READ_FROM_HERE = 1
+        private const val MENU_COPY = 2
+        private const val MENU_SHARE = 3
         private const val NAVIGATOR_TAG = "navigator"
         private const val ARG_BOOK_ID = "book_id"
         private const val SEPIA_BACKGROUND = 0xFFFAF4E8.toInt()

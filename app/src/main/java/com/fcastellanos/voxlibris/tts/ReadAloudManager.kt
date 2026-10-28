@@ -124,6 +124,12 @@ class ReadAloudManager(
     /** Empieza a leer `bookId` desde `from`. Si otro libro estaba sonando, lo detiene antes. */
     fun start(bookId: Long, from: Locator?) {
         if (_activeBookId.value == bookId && navigator != null) {
+            if (from != null) {
+                Log.d(TAG, "Mover la lectura a un punto elegido")
+                hasStartedSpeaking = false
+                if (_status.value == Status.Playing) _status.value = Status.Preparing
+                navigator?.go(from)
+            }
             play()
             return
         }
