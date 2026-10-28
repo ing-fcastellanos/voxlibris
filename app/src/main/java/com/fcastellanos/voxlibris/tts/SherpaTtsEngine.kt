@@ -141,9 +141,16 @@ class SherpaTtsEngine(
                     if (isLast) playExecutor.execute { finishIfNeeded(request) }
                     continue
                 }
-                request.samplesPending.addAndGet(audio.first.size.toLong())
-                val task = Runnable { playPiece(request, piece, index, audio.first, audio.second, isLast) }
-                if (index == 0 && !isLast && audio.first.size < audio.second * HOLD_FIRST_PIECE_UNDER_SECONDS) {
+                // Entre trozos no debe quedar el silencio que el modelo pone al principio y al final
+                // de cada síntesis: sonaría como una pausa que el texto no tiene.
+                var samples = audio.first
+                val sampleRate = audio.second
+                if (index > 0) samples = TtsMath.trimLeadingSilence(samples, sampleRate, keepMs = LEADING_KEEP_MS)
+                if (!isLast) samples = TtsMath.trimTrailingSilence(samples, sampleRate, keepMs = JOIN_KEEP_MS)
+                if (pieces.size > 1) samples = TtsMath.fadeEdges(samples, sampleRate, fadeInMs = if (index > 0) EDGE_FADE_MS else 0, fadeOutMs = if (!isLast) EDGE_FADE_MS else 0)
+                request.samplesPending.addAndGet(samples.size.toLong())
+                val task = Runnable { playPiece(request, piece, index, samples, sampleRate, isLast) }
+                if (index == 0 && !isLast && samples.size < sampleRate * HOLD_FIRST_PIECE_UNDER_SECONDS) {
                     held = task
                     continue
                 }
@@ -408,5 +415,9 @@ class SherpaTtsEngine(
         /** El adelanto para pedir la frase siguiente no depende del búfer: se mide sobre lo que falta por sonar. */
         const val BUFFER_SECONDS = 0.25
         const val HOLD_FIRST_PIECE_UNDER_SECONDS = 1.5
+        /** Silencio que se conserva en la unión entre trozos (una coma natural dura unos 150 ms). */
+        const val JOIN_KEEP_MS = 60
+        const val LEADING_KEEP_MS = 10
+        const val EDGE_FADE_MS = 5
     }
 }

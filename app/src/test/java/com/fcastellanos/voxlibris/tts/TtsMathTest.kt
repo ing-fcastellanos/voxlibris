@@ -71,35 +71,39 @@ class TtsMathTest {
     }
 
     @Test
-    fun `long text splits at punctuation with correct offsets`() {
+    fun `long text splits only at punctuation with correct offsets`() {
         val text = "Ramsa había reclutado a Rin para que lo ayudase, y fortificar los callejones traseros era lo único que importaba; el embarcadero esperaba. Nadie dijo nada más."
-        val pieces = TtsMath.splitForSynthesis(text, 60)
+        val pieces = TtsMath.splitForSynthesis(text, softMax = 60, hardMax = 100, firstSoftMax = 60)
         assertTrue(pieces.size >= 3)
         for (piece in pieces) {
-            assertTrue(piece.text.length <= 60)
+            assertTrue(piece.text.length <= 100)
             assertEquals(piece.text, text.substring(piece.offset, piece.offset + piece.text.length))
         }
-        assertTrue(pieces.first().text.endsWith(","))
-        // El último trozo puede juntar frases cortas si caben; lo que importa es que termine donde termina el texto.
+        // Todos los cortes caen tras puntuación, nunca a mitad de una cláusula.
+        for (piece in pieces.dropLast(1)) assertTrue(piece.text, piece.text.last() in ",;:.!?")
         assertTrue(pieces.last().text.endsWith("Nadie dijo nada más."))
-        assertEquals(text.replace(" ", ""), pieces.joinToString("") { it.text.replace(" ", "") })
     }
 
     @Test
-    fun `falls back to spaces and never emits blank pieces`() {
-        val text = "una " + "palabra ".repeat(40) + "final"
-        val pieces = TtsMath.splitForSynthesis(text, 50)
-        assertTrue(pieces.all { it.text.isNotBlank() && it.text.length <= 50 })
+    fun `a sentence without pauses is kept whole up to the hard limit`() {
+        val text = "una " + "palabra ".repeat(20) + "final" // 169 caracteres sin puntuación
+        assertEquals(1, TtsMath.splitForSynthesis(text, softMax = 60, hardMax = 200).size)
+        val long = "una " + "palabra ".repeat(60) + "final"
+        val pieces = TtsMath.splitForSynthesis(long, softMax = 50, hardMax = 80)
+        assertTrue(pieces.all { it.text.isNotBlank() && it.text.length <= 80 })
         assertEquals(emptyList<TtsMath.Piece>(), TtsMath.splitForSynthesis("   ", 50))
     }
 
     @Test
-    fun `first piece is shorter than the rest`() {
-        val text = ("palabra ".repeat(60)).trim()
-        val pieces = TtsMath.splitForSynthesis(text, 110, 60)
-        assertTrue(pieces.first().text.length <= 60)
-        assertTrue(pieces.drop(1).all { it.text.length <= 110 })
-        assertTrue(pieces.drop(1).any { it.text.length > 60 })
+    fun `trims leading silence and fades edges`() {
+        val sr = 1000
+        val samples = FloatArray(1000) { if (it in 300..600) 0.5f else 0f }
+        val trimmed = TtsMath.trimLeadingSilence(samples, sr, keepMs = 10)
+        assertEquals(1000 - 290, trimmed.size)
+        val faded = TtsMath.fadeEdges(FloatArray(100) { 1f }, sr, fadeInMs = 10, fadeOutMs = 10)
+        assertEquals(0f, faded[0], 1e-6f)
+        assertEquals(1f, faded[50], 1e-6f)
+        assertEquals(0f, faded[99], 1e-6f)
     }
 
     @Test

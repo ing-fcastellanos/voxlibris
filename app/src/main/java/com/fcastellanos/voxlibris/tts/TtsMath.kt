@@ -17,34 +17,35 @@ object TtsMath {
     data class Piece(val text: String, val offset: Int)
 
     /**
-     * Parte una frase larga en trozos de como mucho [maxChars], cortando preferentemente tras
-     * puntuación fuerte, luego tras comas y similares, y en último caso en un espacio.
-     * Trozos cortos significan menos latencia tras una acción y menos trabajo desperdiciado al cancelar.
+     * Parte una frase larga en trozos para sintetizarlos por separado. Corta solo donde el texto
+     * ya hace una pausa (puntuación fuerte o comas, puntos y comas, dos puntos, rayas): un trozo
+     * sintetizado aislado termina con entonación de cierre, y si el corte cae a mitad de una
+     * cláusula suena como una coma inventada. Solo se corta en un espacio cuando la frase supera
+     * [hardMax] caracteres sin ninguna pausa.
+     *
+     * El primer trozo admite un límite blando menor ([firstSoftMax]) para que la frase empiece a sonar antes.
      */
-    fun splitForSynthesis(text: String, maxChars: Int = DEFAULT_PIECE_CHARS, firstMaxChars: Int = DEFAULT_FIRST_PIECE_CHARS): List<Piece> {
+    fun splitForSynthesis(
+        text: String,
+        softMax: Int = DEFAULT_PIECE_CHARS,
+        hardMax: Int = DEFAULT_HARD_PIECE_CHARS,
+        firstSoftMax: Int = DEFAULT_FIRST_PIECE_CHARS,
+    ): List<Piece> {
         val pieces = ArrayList<Piece>()
         val n = text.length
         var start = 0
         while (start < n) {
             while (start < n && text[start].isWhitespace()) start++
             if (start >= n) break
-            // El primer trozo es más corto para que la frase empiece a sonar antes.
-            val limit = if (pieces.isEmpty()) minOf(maxChars, firstMaxChars) else maxChars
-            var end = minOf(n, start + limit)
-            if (end < n) {
-                val minEnd = start + limit / 3
-                var cut = -1
-                for (set in CUT_SETS) {
-                    var i = end - 1
-                    while (i > minEnd) {
-                        if (set.indexOf(text[i]) >= 0) {
-                            cut = i + 1
-                            break
-                        }
-                        i--
-                    }
-                    if (cut > 0) break
-                }
+            val soft = if (pieces.isEmpty()) minOf(softMax, firstSoftMax) else softMax
+            val hard = maxOf(soft, hardMax)
+            var end = n
+            if (n - start > soft) {
+                val minEnd = start + soft / 3
+                var cut = punctuationCut(text, minEnd, minOf(n, start + soft))
+                if (cut < 0 && n - start > hard) cut = punctuationCut(text, minEnd, start + hard)
+                if (cut < 0 && n - start > hard) cut = spaceCut(text, minEnd, start + hard)
+                if (cut < 0 && n - start > hard) cut = start + hard
                 if (cut > 0) end = cut
             }
             val piece = text.substring(start, end).trimEnd()
@@ -54,10 +55,51 @@ object TtsMath {
         return pieces
     }
 
-    private val CUT_SETS = listOf(".!?…", ",;:—–)", " ")
-    /** Unos 110 caracteres son 5 a 7 s de audio: se sintetizan en 3 s mientras suena el trozo anterior. */
-    const val DEFAULT_PIECE_CHARS = 110
-    const val DEFAULT_FIRST_PIECE_CHARS = 60
+    /** Última pausa de puntuación en (minEnd, end]; devuelve el índice siguiente a la puntuación, o -1. */
+    private fun punctuationCut(text: String, minEnd: Int, end: Int): Int {
+        for (set in PUNCTUATION_SETS) {
+            var i = end - 1
+            while (i > minEnd) {
+                if (set.indexOf(text[i]) >= 0 && (i + 1 >= text.length || !text[i + 1].isLetterOrDigit())) return i + 1
+                i--
+            }
+        }
+        return -1
+    }
+
+    private fun spaceCut(text: String, minEnd: Int, end: Int): Int {
+        var i = minOf(end, text.length) - 1
+        while (i > minEnd) {
+            if (text[i].isWhitespace()) return i
+            i--
+        }
+        return -1
+    }
+
+    private val PUNCTUATION_SETS = listOf(".!?…", ",;:—–)»\"")
+    /** Unos 120 caracteres son 6 a 8 s de audio: se sintetizan en 3 o 4 s mientras suena el trozo anterior. */
+    const val DEFAULT_PIECE_CHARS = 120
+    const val DEFAULT_HARD_PIECE_CHARS = 200
+    const val DEFAULT_FIRST_PIECE_CHARS = 100
+
+    /** Recorta el silencio inicial dejando [keepMs]. */
+    fun trimLeadingSilence(samples: FloatArray, sampleRate: Int, threshold: Float = 0.004f, keepMs: Int = 10): FloatArray {
+        if (samples.isEmpty()) return samples
+        var startIdx = 0
+        while (startIdx < samples.size && kotlin.math.abs(samples[startIdx]) < threshold) startIdx++
+        val keep = sampleRate * keepMs / 1000
+        val from = (startIdx - keep).coerceIn(0, samples.size)
+        return if (from == 0) samples else samples.copyOfRange(from, samples.size)
+    }
+
+    /** Fundido lineal de entrada y salida para que la unión entre trozos no haga clic. */
+    fun fadeEdges(samples: FloatArray, sampleRate: Int, fadeInMs: Int, fadeOutMs: Int): FloatArray {
+        val fadeIn = minOf(samples.size, sampleRate * fadeInMs / 1000)
+        val fadeOut = minOf(samples.size, sampleRate * fadeOutMs / 1000)
+        for (i in 0 until fadeIn) samples[i] *= i.toFloat() / fadeIn
+        for (i in 0 until fadeOut) samples[samples.size - 1 - i] *= i.toFloat() / fadeOut
+        return samples
+    }
 
     /** Palabra (rango de caracteres, fin exclusivo) que corresponde a una fracción del audio reproducido. */
     fun wordRangeAt(text: String, fraction: Double): IntRange? {
