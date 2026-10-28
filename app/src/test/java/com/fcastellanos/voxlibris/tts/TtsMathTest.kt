@@ -32,9 +32,10 @@ class TtsMathTest {
 
     @Test
     fun `lead grows with slower devices within bounds`() {
-        assertEquals(0.7, TtsMath.leadSeconds(0.1), 1e-9)
-        assertEquals(1.9, TtsMath.leadSeconds(0.4), 1e-9)
-        assertEquals(2.5, TtsMath.leadSeconds(2.0), 1e-9)
+        assertEquals(1.1, TtsMath.leadSeconds(0.1), 1e-9)
+        assertEquals(2.9, TtsMath.leadSeconds(0.4), 1e-9)
+        assertEquals(5.3, TtsMath.leadSeconds(0.8), 1e-9)
+        assertEquals(6.0, TtsMath.leadSeconds(2.0), 1e-9)
     }
 
     @Test

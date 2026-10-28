@@ -248,6 +248,7 @@ class SherpaTtsEngine(
 
     private companion object {
         const val TAG = "VoxLibris.TTS"
-        const val BUFFER_SECONDS = 3
+        /** Debe superar TtsMath.MAX_LEAD_SECONDS para que la frase siguiente quepa detrás de la actual. */
+        const val BUFFER_SECONDS = 8
     }
 }

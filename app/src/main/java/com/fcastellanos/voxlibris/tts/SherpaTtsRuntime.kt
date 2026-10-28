@@ -69,16 +69,19 @@ class SherpaTtsRuntime(
                     unicodeIndexer = path("unicode_indexer.bin"),
                     voiceStyle = path("voice.bin"),
                 ),
-                numThreads = NUM_THREADS,
+                numThreads = numThreads(),
                 provider = "cpu",
             ),
             maxNumSentences = 1,
         )
         val start = SystemClock.elapsedRealtime()
         return OfflineTts(config = config).also {
-            Log.i(TAG, "Modelo cargado desde ${dir.name} en ${SystemClock.elapsedRealtime() - start} ms (sampleRate=${it.sampleRate()}, voces=${it.numSpeakers()})")
+            Log.i(TAG, "Modelo cargado desde ${dir.name} en ${SystemClock.elapsedRealtime() - start} ms (sampleRate=${it.sampleRate()}, voces=${it.numSpeakers()}, hilos=${numThreads()})")
         }
     }
+
+    /** Mitad de los núcleos, entre 2 y 4: en un Snapdragon 860 son los cuatro núcleos grandes. */
+    private fun numThreads(): Int = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
 
     private fun measure(tts: OfflineTts): Double {
         synthesize(tts, "Calibrando la voz.", 0, 1.0, SherpaTtsDefaults.STEPS_HIGH, "es") // calienta el motor
@@ -93,7 +96,6 @@ class SherpaTtsRuntime(
 
     private companion object {
         const val TAG = "VoxLibris.TTS"
-        const val NUM_THREADS = 2
         const val CALIBRATION_TEXT =
             "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo."
     }

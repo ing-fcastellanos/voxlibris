@@ -30,8 +30,13 @@ object TtsMath {
         return start until end
     }
 
-    /** Segundos de audio que conviene tener en cola antes de pedir la frase siguiente. */
-    fun leadSeconds(rtf: Double): Double = (rtf * 4.0 + 0.3).coerceIn(0.4, 2.5)
+    /**
+     * Segundos de audio que conviene tener en cola antes de pedir la frase siguiente: el tiempo
+     * estimado de sintetizarla (RTF por una frase típica de unos seis segundos) más un margen.
+     */
+    fun leadSeconds(rtf: Double): Double = (rtf * 6.0 + 0.5).coerceIn(0.5, MAX_LEAD_SECONDS)
+
+    const val MAX_LEAD_SECONDS = 6.0
 
     /** Media móvil del factor de tiempo real (segundos de cómputo por segundo de audio). */
     class RtfEstimator(initial: Double) {

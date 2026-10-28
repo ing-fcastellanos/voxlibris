@@ -4,9 +4,6 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
@@ -101,18 +98,9 @@ class ReadAloudManager(
     private var playRequested = false
     private var resumeFrom: Locator? = null
 
-    private val audioManager = application.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    private val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build(),
-        )
-        .setOnAudioFocusChangeListener { change ->
-            if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) pause()
-        }
-        .build()
+    // El foco de audio y el "audio becoming noisy" los gestiona el adaptador Media3 de Readium
+    // (TtsSessionAdapter trae su propio AudioFocusManager). Pedirlo también desde acá hacía que
+    // nuestro listener recibiera "pérdida de foco" al arrancar y pausara la lectura.
 
     private val wakeLock: PowerManager.WakeLock =
         (application.getSystemService(Context.POWER_SERVICE) as PowerManager)
@@ -180,7 +168,6 @@ class ReadAloudManager(
                 Log.w(TAG, "No se pudo publicar la sesión multimedia; se lee sin notificación", e)
             }
             observe(created, bookId)
-            requestFocus()
             playRequested = true
             created.play()
             Log.i(TAG, "Lectura iniciada: libro $bookId")
@@ -189,12 +176,12 @@ class ReadAloudManager(
 
     fun play() {
         val nav = navigator ?: return
-        requestFocus()
         playRequested = true
         nav.play()
     }
 
     fun pause() {
+        Log.d(TAG, "pause() pedido desde:", Throwable())
         navigator?.pause()
         provider.activeEngine?.interrupt()
     }
@@ -242,7 +229,6 @@ class ReadAloudManager(
         }
         navigator = null
         unbindService()
-        runCatching { audioManager.abandonAudioFocusRequest(focusRequest) }
         if (wakeLock.isHeld) wakeLock.release()
         retainedBookId?.let { readerRepository.release(it) }
         retainedBookId = null
@@ -262,6 +248,7 @@ class ReadAloudManager(
         collectors = scope.launch {
             launch {
                 nav.playback.collect { playback ->
+                    Log.d(TAG, "Playback de Readium: state=${playback.state} playWhenReady=${playback.playWhenReady} index=${playback.index}")
                     val status = when (val state = playback.state) {
                         is TtsNavigator.State.Failure -> Status.Error(state.error.message)
                         TtsNavigator.State.Ended -> Status.Ended
@@ -321,10 +308,6 @@ class ReadAloudManager(
         }
     }
 
-    private fun requestFocus() {
-        runCatching { audioManager.requestAudioFocus(focusRequest) }
-    }
-
     private suspend fun bindService() {
         if (serviceBinder != null) return
         val intent = ReadAloudService.intent(application)
@@ -361,7 +344,8 @@ class ReadAloudManager(
 
     private companion object {
         const val TAG = "VoxLibris.TTS"
-        const val HIGHLIGHT_FALLBACK_MS = 1500L
+        /** Mayor que el adelanto máximo con que el motor pide la frase siguiente (TtsMath.leadSeconds). */
+        const val HIGHLIGHT_FALLBACK_MS = 6500L
         const val PROGRESS_SAVE_MS = 3000L
         const val WAKE_LOCK_TIMEOUT_MS = 6 * 60 * 60 * 1000L
     }
