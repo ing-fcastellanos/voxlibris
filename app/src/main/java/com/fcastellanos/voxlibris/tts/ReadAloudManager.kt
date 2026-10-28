@@ -289,10 +289,18 @@ class ReadAloudManager(
                 nav.location.collect { location ->
                     pendingLocator = location.utteranceLocator
                     _pageSync.tryEmit(location.utteranceLocator)
-                    highlightFallback?.cancel()
-                    highlightFallback = launch {
-                        delay(HIGHLIGHT_FALLBACK_MS)
+                    if (!hasStartedSpeaking) {
+                        // Nada está sonando todavía (arranque, salto o cambio): el resaltado sigue
+                        // la posición de Readium de inmediato en vez de esperar al audio.
                         applyPendingHighlight()
+                    } else {
+                        // Con audio en curso, Readium se adelanta por el aviso anticipado: se espera
+                        // a que la frase nueva empiece a sonar (o al plazo de respaldo).
+                        highlightFallback?.cancel()
+                        highlightFallback = launch {
+                            delay(HIGHLIGHT_FALLBACK_MS)
+                            applyPendingHighlight()
+                        }
                     }
                 }
             }
