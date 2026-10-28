@@ -30,7 +30,7 @@ El proyecto está en construcción. La exploración técnica ya cerró y la base
 - Ajustes de lectura persistentes: tema claro, sepia u oscuro; tamaño de letra; interlineado; respetar o no los estilos del editor.
 - Guarda la posición de lectura por libro y la retoma al reabrir; la biblioteca ordena por último leído y muestra el porcentaje.
 - **Lectura en voz alta** con el botón de auriculares: la frase que suena se resalta y la página la sigue. Controles de pausa, frase anterior y siguiente; la lectura se encadena sin silencios entre frases.
-- **Catálogo de lectores**: diez voces (cinco femeninas, cinco masculinas) con muestra de audio, velocidad de 0,6× a 1,8× y calidad Auto, Rápida o Alta. "Auto" mide el teléfono una vez y elige 4 u 8 pasos de difusión.
+- **Catálogo de lectores**: diez voces (cinco femeninas, cinco masculinas) con muestra de audio, velocidad de 0,6× a 2,0× y calidad Auto, Rápida o Alta. "Auto" mide el teléfono una vez y elige 4 u 8 pasos de difusión. Por encima de 1,3× el modelo no se fuerza: sintetiza a 1,3× y el reproductor estira el audio conservando el tono.
 - Las voces se descargan dentro de la app una sola vez (123 MB, con verificación SHA-256) y después todo funciona sin conexión.
 - **Segundo plano**: la lectura sigue con la pantalla apagada o fuera del lector, con controles en la notificación y la pantalla de bloqueo (Media3 `MediaSessionService`). La biblioteca muestra una barra "Leyendo" para volver al libro. Temporizador de sueño de 10 a 60 minutos. El progreso se guarda también mientras se escucha en segundo plano.
 
@@ -138,7 +138,9 @@ No se incluyen en el APK. La app descarga el paquete `sherpa-onnx-supertonic-3-t
 
 ### Cómo se evita el silencio entre frases
 
-El reproductor TTS de Readium pide la frase siguiente solo cuando el motor avisa que terminó la actual. El motor de VoxLibris avisa `onDone` cuando al audio en cola le quedan pocos segundos (el tiempo estimado de síntesis de la próxima frase, derivado del factor de tiempo real medido en el teléfono), de modo que la siguiente frase se escribe a continuación en el mismo `AudioTrack` y suena sin corte. El resaltado se sincroniza con el inicio real de cada frase, no con el aviso anticipado.
+El reproductor TTS de Readium pide la frase siguiente solo cuando el motor avisa que terminó la actual. El motor de VoxLibris avisa `onDone` cuando lo que falta por sonar (encolado, sintetizado sin escribir y aún sin sintetizar) baja del tiempo estimado de síntesis de la próxima frase, derivado del factor de tiempo real medido en el teléfono; la siguiente frase se escribe a continuación en el mismo `AudioTrack` y suena sin corte. Las frases largas se sintetizan en trozos cortados solo donde el texto tiene puntuación, con el silencio de unión recortado y un fundido breve, para que la primera palabra suene antes y cancelar cueste poco. El resaltado se sincroniza con el inicio real de cada frase, no con el aviso anticipado.
+
+Validado en un POCO X3 Pro (Snapdragon 860, Android 13): RTF de 0,5 con 4 pasos y 4 hilos, lectura continua sin huecos salvo ocasionales de menos de un segundo tras frases muy cortas, y entre 1 y 3 s de espera tras cambiar de voz, de velocidad o saltar de frase. Las reglas de AudioFlinger que condicionan este diseño (un track nuevo no suena hasta llenar su búfer; un track que sufre underrun un segundo queda deshabilitado hasta la próxima escritura) están documentadas en los comentarios de `SherpaTtsEngine`.
 
 ## Licencia
 

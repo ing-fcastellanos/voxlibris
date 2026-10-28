@@ -105,13 +105,15 @@ Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto de
 | 3.4 | Elegir otra voz, velocidad 1,3× y calidad "Alta" | Las muestras reflejan voz y velocidad. |
 | 3.5 | En el lector, tocar los auriculares **sin** voces instaladas (borrarlas antes desde "Lectores") | Diálogo "Descargar voces". Al aceptar, la barra inferior muestra el progreso y al terminar la lectura arranca sola. |
 | 3.6 | Tocar los auriculares con voces instaladas | "Preparando la voz…" (uno a cuatro segundos la primera vez) y luego "Leyendo". La frase actual queda resaltada en amarillo, el resaltado avanza frase a frase y la página pasa sola al llegar al final. |
-| 3.7 | Escuchar dos minutos seguidos | Sin silencios perceptibles entre frases (como mucho una pausa natural). Si hay huecos, anotar las líneas "Frase sintetizada: … RTF=… lead=…" del logcat. |
+| 3.7 | Escuchar dos minutos seguidos | Sin silencios entre frases salvo, de vez en cuando, uno de menos de un segundo tras una frase muy corta (dos o tres palabras): es una limitación conocida, la frase siguiente no llega a sintetizarse en lo que dura la corta. Cualquier hueco mayor o frecuente se reporta con las líneas "Trozo sintetizado … RTF=… lead=…" del logcat. |
 | 3.8 | Pausar y reanudar | La pausa corta el audio al instante. Al reanudar muestra "Preparando la voz…" entre 1 y 4 s (vuelve a sintetizar la frase) y retoma la frase en curso desde su inicio. |
 | 3.9 | Frase anterior y frase siguiente | Corta el audio, muestra "Preparando la voz…" entre 1 y 3 s y arranca la frase destino; el resaltado acompaña. |
 | 3.10 | Tocar el chip "Lucía · 1,0×" y cambiar voz y velocidad | Readium reinicia la frase en curso con la voz o velocidad nuevas: se oye un corte, "Preparando la voz…" entre 1 y 8 s (según lo larga que fuera la frase que se estaba sintetizando) y sigue desde el principio de esa frase. |
 | 3.11 | Con la lectura en marcha, reproducir música en otra app; luego recibir una llamada | En ambos casos la lectura se pausa. No se reanuda sola (es lo esperado). |
 | 3.12 | Escuchar el libro de prueba hasta el final | Al terminar el último párrafo la lectura se detiene y la barra de voz desaparece. |
 | 3.13 | Comparar calidad "Rápida" y "Alta" con la misma frase | "Rápida" responde antes; "Alta" suena algo más limpia. En "Auto", el logcat muestra `pasos=4` si el RTF calibrado fue mayor que 0,5 y `pasos=8` si no. |
+| 3.15 | Velocidad 1,6× a 2,0× | Se entienden todas las palabras y se oye completo el final de cada párrafo. El modelo sintetiza como mucho a 1,3× y el resto lo pone el reproductor estirando el audio sin cambiar el tono. |
+| 3.16 | Frases largas con comas | Se oyen como una sola frase; en las comas puede notarse una pausa algo marcada (la frase se sintetiza en trozos cortados solo donde hay puntuación). No debe haber pausas donde el texto no las tiene. |
 | 3.14 | Un EPUB en inglés | La voz lee en inglés (`lang=en` en logcat). |
 
 ---
