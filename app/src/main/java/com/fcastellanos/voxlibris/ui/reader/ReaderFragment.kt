@@ -50,7 +50,6 @@ import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.navigator.util.BaseActionModeCallback
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
-import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
 /**
@@ -69,7 +68,7 @@ class ReaderFragment : Fragment() {
     private var navigatorContainer: FragmentContainerView? = null
 
     /** Punto elegido para empezar a leer mientras se espera el permiso de notificaciones. */
-    private var pendingListenFrom: Locator? = null
+    private var pendingListenFrom: ReaderViewModel.ReadAloudStart? = null
 
     /** En Android 13+ la notificación con controles requiere permiso; se pide al tocar "Escuchar". */
     private val notificationPermission =
@@ -77,7 +76,7 @@ class ReaderFragment : Fragment() {
 
     private fun onListen() = requestListening(null)
 
-    private fun requestListening(from: Locator?) {
+    private fun requestListening(from: ReaderViewModel.ReadAloudStart?) {
         val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         if (needsPermission) {
@@ -88,9 +87,17 @@ class ReaderFragment : Fragment() {
         }
     }
 
-    private fun startListening(from: Locator?) {
+    private fun startListening(from: ReaderViewModel.ReadAloudStart?) {
         pendingListenFrom = null
         if (from != null) viewModel.listenFrom(from) else viewModel.listen()
+    }
+
+    private fun readFromSelection(selection: org.readium.r2.navigator.Selection) {
+        val navigator = navigator ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val firstVisible = runCatching { navigator.firstVisibleElementLocator() }.getOrNull()
+            requestListening(viewModel.resolveReadAloudStart(selection, firstVisible))
+        }
     }
 
     /**
@@ -110,7 +117,7 @@ class ReaderFragment : Fragment() {
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
             when (item.itemId) {
-                MENU_READ_FROM_HERE -> withSelection { selection -> requestListening(selection.locator) }
+                MENU_READ_FROM_HERE -> withSelection { selection -> readFromSelection(selection) }
                 MENU_COPY -> withSelection { selection -> copyToClipboard(selection.locator.text.highlight.orEmpty()) }
                 MENU_SHARE -> withSelection { selection -> shareText(selection.locator.text.highlight.orEmpty()) }
                 else -> return false

@@ -122,13 +122,14 @@ class ReadAloudManager(
     fun isActiveFor(bookId: Long): Boolean = _activeBookId.value == bookId
 
     /** Empieza a leer `bookId` desde `from`. Si otro libro estaba sonando, lo detiene antes. */
-    fun start(bookId: Long, from: Locator?) {
+    fun start(bookId: Long, from: Locator?, skipSentences: Int = 0) {
         if (_activeBookId.value == bookId && navigator != null) {
             if (from != null) {
-                Log.d(TAG, "Mover la lectura a un punto elegido")
+                Log.d(TAG, "Mover la lectura a un punto elegido (saltar $skipSentences frases)")
                 hasStartedSpeaking = false
                 if (_status.value == Status.Playing) _status.value = Status.Preparing
                 navigator?.go(from)
+                repeat(skipSentences) { navigator?.skipToNextUtterance() }
             }
             play()
             return
@@ -174,9 +175,10 @@ class ReadAloudManager(
                 Log.w(TAG, "No se pudo publicar la sesión multimedia; se lee sin notificación", e)
             }
             observe(created, bookId)
+            repeat(skipSentences) { created.skipToNextUtterance() }
             playRequested = true
             created.play()
-            Log.i(TAG, "Lectura iniciada: libro $bookId")
+            Log.i(TAG, "Lectura iniciada: libro $bookId" + if (skipSentences > 0) " (saltando $skipSentences frases)" else "")
         }
     }
 

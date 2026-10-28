@@ -21,6 +21,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import org.readium.r2.navigator.Selection
+import org.readium.r2.shared.publication.services.content.Content
+import org.readium.r2.shared.publication.services.content.content
+import org.readium.r2.shared.util.Language
+import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
+import org.readium.r2.shared.util.tokenizer.TextUnit
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.EpubPreferencesEditor
@@ -92,10 +100,49 @@ class ReaderViewModel(
         readAloud.start(bookId, _currentLocator.value)
     }
 
-    /** Empieza (o mueve) la lectura en voz alta a un punto elegido por el usuario, por ejemplo una selección. */
-    fun listenFrom(locator: Locator) {
-        readAloud.start(bookId, locator)
+    /** Punto de arranque para la voz: el párrafo que contiene la selección y cuántas frases suyas saltar. */
+    data class ReadAloudStart(val locator: Locator, val skipSentences: Int)
+
+    /** Empieza (o mueve) la lectura en voz alta a un punto elegido por el usuario. */
+    fun listenFrom(start: ReadAloudStart) {
+        readAloud.start(bookId, start.locator, start.skipSentences)
     }
+
+    /**
+     * El Locator de una selección de Readium es el de la página, sin posición dentro del recurso.
+     * Para arrancar donde el usuario tocó, se busca el texto seleccionado en el contenido a partir
+     * del primer elemento visible: el segmento que lo contiene trae un Locator con `cssSelector`, y
+     * el tokenizador de frases (el mismo que usa el TtsNavigator) dice cuántas frases preceden a la
+     * selección dentro de ese segmento. Si no se encuentra, se arranca al principio de la página visible.
+     */
+    suspend fun resolveReadAloudStart(selection: Selection, firstVisible: Locator?): ReadAloudStart = withContext(Dispatchers.Default) {
+        val fallback = ReadAloudStart(firstVisible ?: selection.locator, 0)
+        val publication = session?.publication ?: return@withContext fallback
+        val needle = selection.locator.text.highlight?.collapseSpaces()?.take(NEEDLE_CHARS)?.takeIf { it.length >= 2 }
+            ?: return@withContext fallback
+        val language = publication.metadata.languages.firstOrNull()?.let { Language(it) }
+        val tokenizer = DefaultTextContentTokenizer(TextUnit.Sentence, language)
+        val iterator = runCatching { publication.content(firstVisible ?: selection.locator)?.iterator() }.getOrNull()
+            ?: return@withContext fallback
+        var visited = 0
+        while (visited < MAX_ELEMENTS_TO_SCAN && iterator.hasNext()) {
+            val element = iterator.next()
+            visited++
+            val segments = (element as? Content.TextElement)?.segments ?: continue
+            for (segment in segments) {
+                val text = segment.text.collapseSpaces()
+                val index = text.indexOf(needle)
+                if (index < 0) continue
+                val skip = tokenizer.tokenize(text).count { range ->
+                    range.last < index && text.substring(range).isNotBlank()
+                }
+                return@withContext ReadAloudStart(segment.locator, skip)
+            }
+        }
+        fallback
+    }
+
+    private fun String.collapseSpaces(): String = replace(WHITESPACE, " ").trim()
 
     fun onLocatorChanged(locator: Locator) {
         _currentLocator.value = locator
@@ -143,6 +190,9 @@ class ReaderViewModel(
 
     companion object {
         private const val SAVE_DEBOUNCE_MS = 600L
+        private const val NEEDLE_CHARS = 24
+        private const val MAX_ELEMENTS_TO_SCAN = 400
+        private val WHITESPACE = Regex("\\s+")
 
         fun factory(container: AppContainer, bookId: Long): ViewModelProvider.Factory = viewModelFactory {
             initializer {
