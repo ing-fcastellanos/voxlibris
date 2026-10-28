@@ -30,6 +30,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -80,14 +83,17 @@ fun VoiceSettingsContent(
         }
         item {
             val locale = LocalConfiguration.current.locales[0]
+            // Se aplica al soltar: cada cambio reinicia la frase en curso en el lector.
+            var sliderSpeed by remember(settings.speed) { mutableFloatStateOf(settings.speed.toFloat()) }
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.speed_label, String.format(locale, "%.1f", settings.speed)),
+                text = stringResource(R.string.speed_label, String.format(locale, "%.1f", sliderSpeed)),
                 style = MaterialTheme.typography.titleMedium,
             )
             Slider(
-                value = settings.speed.toFloat(),
-                onValueChange = { viewModel.setSpeed(it.toDouble()) },
+                value = sliderSpeed,
+                onValueChange = { sliderSpeed = it },
+                onValueChangeFinished = { viewModel.setSpeed(sliderSpeed.toDouble()) },
                 valueRange = SherpaTtsDefaults.SPEED_RANGE.start.toFloat()..SherpaTtsDefaults.SPEED_RANGE.endInclusive.toFloat(),
                 steps = 11,
             )

@@ -85,12 +85,16 @@ class SherpaTtsEngine(
             val audio = try {
                 synthesize(text, language, settings)
             } catch (e: Throwable) {
+                Log.w(TAG, "Falló la síntesis de la frase ${requestId.value.take(8)}", e)
                 if (!request.cancelled) {
                     listener?.onError(requestId, SherpaTtsError.Synthesis(e.message ?: e.javaClass.simpleName))
                 }
                 return@execute
             }
-            if (request.cancelled) return@execute
+            if (request.cancelled) {
+                Log.d(TAG, "Síntesis descartada (frase cancelada ${requestId.value.take(8)})")
+                return@execute
+            }
             if (audio == null) {
                 listener?.onDone(requestId)
                 return@execute
@@ -103,15 +107,24 @@ class SherpaTtsEngine(
         interrupt()
     }
 
-    /** Corta el audio de inmediato (también el que ya estaba en cola) y descarta la frase en curso. */
+    /**
+     * Corta el audio de inmediato (también el que ya estaba en cola) y descarta la frase en curso.
+     * El AudioTrack se libera y la próxima frase crea uno nuevo: así el cabezal de reproducción
+     * vuelve a cero de forma fiable en cualquier dispositivo.
+     */
     fun interrupt() {
         val request = current
         current = null
         request?.cancelled = true
-        runCatching { track?.pause() } // silencio inmediato; además interrumpe un write bloqueante
+        val stale = track
+        runCatching { stale?.pause() } // silencio inmediato; además interrumpe un write bloqueante
+        Log.d(TAG, "interrupt(): frase=${request?.id?.value?.take(8)} track=${stale != null}")
         playExecutor.execute {
-            runCatching { track?.flush() }
-            framesWritten = 0
+            if (track === stale) {
+                stale?.let { runCatching { it.flush() }; runCatching { it.release() } }
+                track = null
+                framesWritten = 0
+            }
         }
         request?.let { listener?.onInterrupted(it.id) }
     }
@@ -154,6 +167,7 @@ class SherpaTtsEngine(
     private fun play(request: Request, samples: FloatArray, sampleRate: Int) {
         if (request.cancelled || closed.get()) return
         val track = ensureTrack(sampleRate) ?: run {
+            Log.w(TAG, "No se pudo crear el AudioTrack")
             listener?.onError(request.id, SherpaTtsError.Audio("no se pudo crear la salida de audio"))
             return
         }
@@ -162,6 +176,7 @@ class SherpaTtsEngine(
         val startFrame = framesWritten
         val endFrame = startFrame + samples.size
         val lead = TtsMath.leadSeconds(rtf.value)
+        Log.d(TAG, "play(): frase=${request.id.value.take(8)} ${"%.2f".format(samples.size.toDouble() / sampleRate)} s, cola previa=${"%.2f".format((startFrame - headPosition(track)).toDouble() / sampleRate)} s, lead=${"%.1f".format(lead)} s")
         val chunk = sampleRate / 10
         var offset = 0
         while (offset < samples.size) {
@@ -169,10 +184,15 @@ class SherpaTtsEngine(
             val count = minOf(chunk, samples.size - offset)
             val written = track.write(samples, offset, count, AudioTrack.WRITE_BLOCKING)
             if (written < 0) {
+                Log.w(TAG, "AudioTrack.write devolvió $written (estado=${track.playState})")
                 listener?.onError(request.id, SherpaTtsError.Audio("write devolvió $written"))
                 return
             }
-            if (written == 0) SystemClock.sleep(5)
+            if (written == 0) {
+                if (request.cancelled) return
+                Log.w(TAG, "AudioTrack.write devolvió 0 (estado=${track.playState})")
+                SystemClock.sleep(5)
+            }
             offset += written
             framesWritten += written
             reportProgress(request, track, startFrame, endFrame)
@@ -187,6 +207,7 @@ class SherpaTtsEngine(
         }
         if (request.cancelled) return
         markStarted(request)
+        Log.d(TAG, "onDone anticipado: frase=${request.id.value.take(8)} quedan ${"%.1f".format((endFrame - headPosition(track)).toDouble() / sampleRate)} s en cola")
         listener?.onDone(request.id)
     }
 

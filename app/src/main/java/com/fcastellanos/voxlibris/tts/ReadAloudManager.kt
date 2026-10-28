@@ -177,6 +177,7 @@ class ReadAloudManager(
     fun play() {
         val nav = navigator ?: return
         playRequested = true
+        hasStartedSpeaking = false
         nav.play()
     }
 
@@ -194,9 +195,19 @@ class ReadAloudManager(
         }
     }
 
-    fun next() = navigator?.skipToNextUtterance()
+    fun next() {
+        Log.d(TAG, "Frase siguiente")
+        hasStartedSpeaking = false
+        _status.value = Status.Preparing.takeIf { _status.value == Status.Playing } ?: _status.value
+        navigator?.skipToNextUtterance()
+    }
 
-    fun previous() = navigator?.skipToPreviousUtterance()
+    fun previous() {
+        Log.d(TAG, "Frase anterior")
+        hasStartedSpeaking = false
+        _status.value = Status.Preparing.takeIf { _status.value == Status.Playing } ?: _status.value
+        navigator?.skipToPreviousUtterance()
+    }
 
     fun downloadVoices() = models.install()
 
@@ -291,7 +302,14 @@ class ReadAloudManager(
                     }
                 }
             }
-            launch { ttsPreferences.preferences.collect { nav.submitPreferences(it) } }
+            launch {
+                ttsPreferences.preferences.collect { prefs ->
+                    Log.d(TAG, "Preferencias de voz: voz=${prefs.voiceId} velocidad=${prefs.speed} calidad=${prefs.quality}")
+                    hasStartedSpeaking = false
+                    if (_status.value == Status.Playing) _status.value = Status.Preparing
+                    nav.submitPreferences(prefs)
+                }
+            }
         }
     }
 
