@@ -21,8 +21,10 @@ object SherpaTtsDefaults {
     val LANGUAGE: Language = Language("es")
     const val VOICE_ID = 0
     const val SPEED = 1.0
-    val SPEED_RANGE = 0.6..1.8
+    val SPEED_RANGE = 0.6..2.0
     const val SPEED_STEP = 0.1
+    /** Por encima de esto Supertonic se come sílabas; el resto de la velocidad se logra estirando el audio. */
+    const val MAX_SYNTH_SPEED = 1.3
     const val STEPS_FAST = 4
     const val STEPS_HIGH = 8
     /** Por encima de este factor de tiempo real (medido con 8 pasos) se pasa a 4 pasos. */

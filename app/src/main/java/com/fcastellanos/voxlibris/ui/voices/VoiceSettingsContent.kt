@@ -95,7 +95,7 @@ fun VoiceSettingsContent(
                 onValueChange = { sliderSpeed = it },
                 onValueChangeFinished = { viewModel.setSpeed(sliderSpeed.toDouble()) },
                 valueRange = SherpaTtsDefaults.SPEED_RANGE.start.toFloat()..SherpaTtsDefaults.SPEED_RANGE.endInclusive.toFloat(),
-                steps = 11,
+                steps = 13,
             )
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.quality), style = MaterialTheme.typography.titleMedium)

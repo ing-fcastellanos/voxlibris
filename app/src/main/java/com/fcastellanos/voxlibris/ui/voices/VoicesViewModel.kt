@@ -72,15 +72,16 @@ class VoicesViewModel(
                 val tts = runtime.acquire() ?: return@launch
                 val current = settings.value
                 val rtf = runtime.calibratedRtf(tts)
+                val synthSpeed = minOf(current.speed, SherpaTtsDefaults.MAX_SYNTH_SPEED)
                 val audio = runtime.synthesize(
                     tts,
                     sampleTemplate.format(voice.name),
                     voice.id,
-                    current.speed,
+                    synthSpeed,
                     TtsMath.numSteps(current.quality, rtf),
                     "es",
                 )
-                PcmPlayer.playBlocking(audio.samples, audio.sampleRate)
+                PcmPlayer.playBlocking(audio.samples, audio.sampleRate, (current.speed / synthSpeed).toFloat())
             } catch (e: Exception) {
                 // La muestra es opcional: si falla, simplemente no suena.
             } finally {

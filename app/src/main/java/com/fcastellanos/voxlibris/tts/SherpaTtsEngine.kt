@@ -3,12 +3,15 @@ package com.fcastellanos.voxlibris.tts
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.PlaybackParams
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import com.k2fsa.sherpa.onnx.OfflineTts
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.abs
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,11 +24,17 @@ import org.readium.r2.shared.util.Language
  * Motor de voz para el TtsNavigator de Readium: sintetiza cada frase con sherpa-onnx y la
  * reproduce con un AudioTrack.
  *
+ * Cada frase se parte en trozos cortos que se sintetizan en orden y se escriben al AudioTrack a
+ * medida que están listos; así la primera palabra suena antes y cancelar desperdicia poco trabajo.
+ *
  * Readium pide la frase siguiente recién cuando recibe `onDone` de la actual. Para que no haya
- * silencio entre frases, `onDone` se emite cuando al audio en cola le quedan pocos segundos
- * (el tiempo estimado de síntesis de la próxima frase); la siguiente se escribe a continuación
- * en el mismo AudioTrack y suena sin corte. `onStart` sí se emite cuando la frase empieza a
- * sonar de verdad, para que el resaltado sea fiel.
+ * silencio entre frases, `onDone` se emite cuando lo que falta por sonar (encolado, sin escribir y
+ * sin sintetizar) baja del tiempo estimado de síntesis de la próxima frase; la siguiente se escribe
+ * a continuación en el mismo hilo y suena sin corte. `onStart` sí se emite cuando la frase empieza
+ * a sonar de verdad, para que el resaltado sea fiel.
+ *
+ * La velocidad por encima de [SherpaTtsDefaults.MAX_SYNTH_SPEED] no se pide al modelo (se come
+ * sílabas): se sintetiza al tope y el AudioTrack estira el audio conservando el tono.
  */
 @OptIn(ExperimentalReadiumApi::class)
 class SherpaTtsEngine(
@@ -42,9 +51,20 @@ class SherpaTtsEngine(
         data class UtteranceStarted(val requestId: String) : Event
     }
 
-    private class Request(val id: TtsEngine.RequestId, val text: String) {
+    private class Request(
+        val id: TtsEngine.RequestId,
+        val text: String,
+        val pieces: List<TtsMath.Piece>,
+        val playbackRate: Float,
+    ) {
         @Volatile var cancelled = false
         @Volatile var started = false
+        @Volatile var doneReported = false
+        /** Caracteres de los trozos que todavía no se sintetizaron. */
+        @Volatile var charsPending: Int = pieces.sumOf { it.text.length }
+        /** Muestras ya sintetizadas que todavía no se escribieron al AudioTrack. */
+        val samplesPending = AtomicLong(0)
+        @Volatile var firstStartFrame: Long = -1
         var lastRange: IntRange? = null
     }
 
@@ -55,8 +75,13 @@ class SherpaTtsEngine(
 
     private val rtf = TtsMath.RtfEstimator(calibratedRtf ?: 0.5)
 
+    /** Segundos de audio por carácter, para estimar lo que falta de los trozos sin sintetizar. */
+    @Volatile private var secondsPerChar = 0.07
+
     @Volatile private var listener: TtsEngine.Listener<SherpaTtsError>? = null
     @Volatile private var current: Request? = null
+    /** Frase cuyo audio se está escribiendo ahora; puede ser distinta de [current] por el aviso anticipado. */
+    @Volatile private var playing: Request? = null
     private val closed = AtomicBoolean(false)
 
     private val synthExecutor = Executors.newSingleThreadExecutor { r -> Thread(r, "voxlibris-tts-synth") }
@@ -68,9 +93,6 @@ class SherpaTtsEngine(
     @Volatile private var track: AudioTrack? = null
     private var framesWritten = 0L
 
-    /** Frase cuyo audio se está escribiendo ahora; puede ser distinta de [current] por el aviso anticipado. */
-    @Volatile private var playing: Request? = null
-
     override fun submitPreferences(preferences: SherpaTtsPreferences) {
         settingsFlow.value = preferences.resolve(contentLanguage)
     }
@@ -81,29 +103,44 @@ class SherpaTtsEngine(
 
     override fun speak(requestId: TtsEngine.RequestId, text: String, language: Language?) {
         if (closed.get()) return
-        val request = Request(requestId, text)
-        current = request
         val settings = settingsFlow.value
+        val synthSpeed = minOf(settings.speed, SherpaTtsDefaults.MAX_SYNTH_SPEED)
+        val playbackRate = (settings.speed / synthSpeed).toFloat()
+        val pieces = TtsMath.splitForSynthesis(text)
+        val request = Request(requestId, text, pieces, playbackRate)
+        current = request
+        if (pieces.isEmpty()) {
+            listener?.onDone(requestId)
+            return
+        }
         synthExecutor.execute {
-            if (request.cancelled) return@execute
-            val audio = try {
-                synthesize(text, language, settings)
-            } catch (e: Throwable) {
-                Log.w(TAG, "Falló la síntesis de la frase ${requestId.value.take(8)}", e)
-                if (!request.cancelled) {
-                    listener?.onError(requestId, SherpaTtsError.Synthesis(e.message ?: e.javaClass.simpleName))
+            for ((index, piece) in pieces.withIndex()) {
+                if (request.cancelled) {
+                    Log.d(TAG, "Síntesis descartada (frase cancelada ${requestId.value.take(8)}, trozo ${index + 1}/${pieces.size})")
+                    return@execute
                 }
-                return@execute
+                val audio = try {
+                    synthesize(piece.text, language, settings, synthSpeed)
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Falló la síntesis de la frase ${requestId.value.take(8)}", e)
+                    if (!request.cancelled) {
+                        listener?.onError(requestId, SherpaTtsError.Synthesis(e.message ?: e.javaClass.simpleName))
+                    }
+                    return@execute
+                }
+                request.charsPending -= piece.text.length
+                if (request.cancelled) {
+                    Log.d(TAG, "Síntesis descartada (frase cancelada ${requestId.value.take(8)}, trozo ${index + 1}/${pieces.size})")
+                    return@execute
+                }
+                val isLast = index == pieces.lastIndex
+                if (audio == null) {
+                    if (isLast) playExecutor.execute { finishIfNeeded(request) }
+                    continue
+                }
+                request.samplesPending.addAndGet(audio.first.size.toLong())
+                playExecutor.execute { playPiece(request, piece, index, audio.first, audio.second, isLast) }
             }
-            if (request.cancelled) {
-                Log.d(TAG, "Síntesis descartada (frase cancelada ${requestId.value.take(8)})")
-                return@execute
-            }
-            if (audio == null) {
-                listener?.onDone(requestId)
-                return@execute
-            }
-            playExecutor.execute { play(request, audio.first, audio.second) }
         }
     }
 
@@ -151,7 +188,7 @@ class SherpaTtsEngine(
         synthExecutor.shutdown()
     }
 
-    private fun synthesize(text: String, language: Language?, settings: SherpaTtsSettings): Pair<FloatArray, Int>? {
+    private fun synthesize(text: String, language: Language?, settings: SherpaTtsSettings, synthSpeed: Double): Pair<FloatArray, Int>? {
         val clean = text.trim()
         if (clean.isEmpty()) return null
         val languageCode = when {
@@ -160,24 +197,41 @@ class SherpaTtsEngine(
         } ?: "es"
         val steps = TtsMath.numSteps(settings.quality, calibratedRtf)
         val start = SystemClock.elapsedRealtime()
-        val generated = runtime.synthesize(tts, clean, settings.voiceId, settings.speed, steps, languageCode)
+        val generated = runtime.synthesize(tts, clean, settings.voiceId, synthSpeed, steps, languageCode)
         val samples = TtsMath.trimTrailingSilence(generated.samples, generated.sampleRate)
         val synthSeconds = (SystemClock.elapsedRealtime() - start) / 1000.0
         val audioSeconds = samples.size.toDouble() / generated.sampleRate
         rtf.update(synthSeconds, audioSeconds)
-        Log.d(TAG, "Frase sintetizada: %.2f s de audio en %.2f s (RTF=%.2f, pasos=%d, voz=%d, lang=%s, lead=%.1f s)".format(audioSeconds, synthSeconds, if (audioSeconds > 0) synthSeconds / audioSeconds else 0.0, steps, settings.voiceId, languageCode, TtsMath.leadSeconds(rtf.value)))
+        if (clean.length >= 20 && audioSeconds > 0.2) {
+            secondsPerChar = secondsPerChar * 0.7 + (audioSeconds / clean.length) * 0.3
+        }
+        Log.d(TAG, "Trozo sintetizado: %.2f s de audio en %.2f s (RTF=%.2f, pasos=%d, voz=%d, lang=%s, %d chars, lead=%.1f s)".format(audioSeconds, synthSeconds, if (audioSeconds > 0) synthSeconds / audioSeconds else 0.0, steps, settings.voiceId, languageCode, clean.length, TtsMath.leadSeconds(rtf.value)))
         return samples to generated.sampleRate
     }
 
+    private fun finishIfNeeded(request: Request) {
+        if (request.cancelled || request.doneReported) return
+        request.doneReported = true
+        markStarted(request)
+        Log.d(TAG, "onDone: frase=${request.id.value.take(8)} escrita por completo")
+        listener?.onDone(request.id)
+    }
+
     /**
-     * Escribe la frase en el AudioTrack al ritmo de la reproducción (búfer corto, escrituras no
-     * bloqueantes). Avisa `onDone` a Readium cuando lo que falta por sonar baja del adelanto,
-     * aunque siga escribiendo: la frase siguiente se sintetiza mientras tanto y su escritura queda
-     * encolada detrás en este mismo hilo, así que suena sin corte.
+     * Escribe un trozo en el AudioTrack al ritmo de la reproducción (búfer corto, escrituras no
+     * bloqueantes). Avisa `onDone` de la frase completa cuando lo que falta por sonar baja del adelanto.
      */
-    private fun play(request: Request, samples: FloatArray, sampleRate: Int, attempt: Int = 0, doneAlreadyReported: Boolean = false) {
+    private fun playPiece(
+        request: Request,
+        piece: TtsMath.Piece,
+        pieceIndex: Int,
+        samples: FloatArray,
+        sampleRate: Int,
+        isLast: Boolean,
+        attempt: Int = 0,
+    ) {
         if (request.cancelled || closed.get()) return
-        val track = ensureTrack(sampleRate) ?: run {
+        val track = ensureTrack(sampleRate, request.playbackRate) ?: run {
             Log.w(TAG, "No se pudo crear el AudioTrack")
             listener?.onError(request.id, SherpaTtsError.Audio("no se pudo crear la salida de audio"))
             return
@@ -187,13 +241,14 @@ class SherpaTtsEngine(
             // Arranca antes de escribir: con el búfer vacío AudioFlinger no exige llenarlo para empezar.
             if (track.playState != AudioTrack.PLAYSTATE_PLAYING) track.play()
             val startFrame = framesWritten
+            if (request.firstStartFrame < 0) request.firstStartFrame = startFrame
             val endFrame = startFrame + samples.size
             val lead = TtsMath.leadSeconds(rtf.value)
-            Log.d(TAG, "play(): frase=${request.id.value.take(8)} ${"%.2f".format(samples.size.toDouble() / sampleRate)} s, cola previa=${"%.2f".format((startFrame - headPosition(track)).toDouble() / sampleRate)} s, lead=${"%.1f".format(lead)} s" + if (attempt > 0) " (reintento $attempt)" else "")
+            val rate = request.playbackRate.toDouble()
+            Log.d(TAG, "play(): frase=${request.id.value.take(8)} trozo ${pieceIndex + 1}/${request.pieces.size} ${"%.2f".format(samples.size.toDouble() / sampleRate)} s, cola previa=${"%.2f".format((startFrame - headPosition(track)).toDouble() / sampleRate)} s, lead=${"%.1f".format(lead)} s" + if (attempt > 0) " (reintento $attempt)" else "")
 
             val chunk = sampleRate / 20
             var offset = 0
-            var doneReported = doneAlreadyReported
             var lastHead = headPosition(track)
             var lastAdvanceAt = SystemClock.elapsedRealtime()
             var restarted = false
@@ -207,16 +262,21 @@ class SherpaTtsEngine(
                     }
                     offset += written
                     framesWritten += written
+                    request.samplesPending.addAndGet(-written.toLong())
                 }
-                reportProgress(request, track, startFrame, endFrame)
+                reportProgress(request, piece, track, startFrame, endFrame)
                 val head = headPosition(track)
-                val queued = (framesWritten - head).coerceAtLeast(0L).toDouble() / sampleRate
-                val remaining = (samples.size - offset).toDouble() / sampleRate + queued
-                if (!doneReported && remaining <= lead) {
-                    doneReported = true
-                    markStarted(request)
-                    Log.d(TAG, "onDone anticipado: frase=${request.id.value.take(8)} quedan ${"%.1f".format(remaining)} s por sonar")
-                    listener?.onDone(request.id)
+                if (!request.doneReported) {
+                    val queued = (framesWritten - head).coerceAtLeast(0L).toDouble() / sampleRate
+                    val pending = request.samplesPending.get().coerceAtLeast(0L).toDouble() / sampleRate
+                    val unsynthesized = request.charsPending.coerceAtLeast(0) * secondsPerChar
+                    val remaining = (queued + pending + unsynthesized) / rate
+                    if (remaining <= lead) {
+                        request.doneReported = true
+                        markStarted(request)
+                        Log.d(TAG, "onDone anticipado: frase=${request.id.value.take(8)} quedan ${"%.1f".format(remaining)} s por sonar (trozo ${pieceIndex + 1}/${request.pieces.size})")
+                        listener?.onDone(request.id)
+                    }
                 }
                 if (offset >= samples.size) break
 
@@ -239,7 +299,8 @@ class SherpaTtsEngine(
                         runCatching { track.release() }
                         this.track = null
                         framesWritten = 0
-                        play(request, samples.copyOfRange(played, samples.size), sampleRate, attempt + 1, doneReported)
+                        request.samplesPending.addAndGet((samples.size - played).toLong())
+                        playPiece(request, piece, pieceIndex, samples.copyOfRange(played, samples.size), sampleRate, isLast, attempt + 1)
                         return
                     } else {
                         Log.w(TAG, "La salida de audio no responde; abandono la frase ${request.id.value.take(8)}")
@@ -250,22 +311,20 @@ class SherpaTtsEngine(
                 SystemClock.sleep(10)
             }
             if (request.cancelled) return
-            if (!doneReported) {
-                markStarted(request)
-                Log.d(TAG, "onDone: frase=${request.id.value.take(8)} escrita por completo")
-                listener?.onDone(request.id)
-            }
+            if (isLast) finishIfNeeded(request)
         } finally {
             if (playing === request) playing = null
         }
     }
 
-    private fun reportProgress(request: Request, track: AudioTrack, startFrame: Long, endFrame: Long) {
+    private fun reportProgress(request: Request, piece: TtsMath.Piece, track: AudioTrack, startFrame: Long, endFrame: Long) {
         val head = headPosition(track)
-        if (head < startFrame) return
+        if (request.firstStartFrame < 0 || head < request.firstStartFrame) return
         markStarted(request)
+        if (head < startFrame) return
         val fraction = (head - startFrame).toDouble() / (endFrame - startFrame).coerceAtLeast(1L)
-        val range = TtsMath.wordRangeAt(request.text, fraction) ?: return
+        val index = piece.offset + (fraction.coerceIn(0.0, 1.0) * piece.text.length).toInt()
+        val range = TtsMath.wordRangeAtIndex(request.text, index) ?: return
         if (range != request.lastRange) {
             request.lastRange = range
             listener?.onRange(request.id, range)
@@ -281,52 +340,61 @@ class SherpaTtsEngine(
 
     private fun headPosition(track: AudioTrack): Long = track.playbackHeadPosition.toLong() and 0xFFFF_FFFFL
 
-    private fun ensureTrack(sampleRate: Int): AudioTrack? {
-        track?.let { existing ->
-            if (existing.sampleRate == sampleRate) return existing
-            runCatching { existing.release() }
+    private fun ensureTrack(sampleRate: Int, playbackRate: Float): AudioTrack? {
+        var result = track
+        if (result != null && result.sampleRate != sampleRate) {
+            runCatching { result.release() }
             track = null
+            result = null
         }
-        val minBuffer = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
-        // Búfer corto: AudioFlinger no mezcla un track nuevo hasta que su búfer se llena, así que
-        // uno grande dejaría mudas las frases que no alcanzan a llenarlo.
-        val bufferBytes = maxOf(minBuffer, (sampleRate * BUFFER_SECONDS).toInt() * Float.SIZE_BYTES)
-        return try {
-            AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build(),
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-                        .setSampleRate(sampleRate)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                        .build(),
-                )
-                .setBufferSizeInBytes(bufferBytes)
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
-                .also {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        runCatching { it.setStartThresholdInFrames(maxOf(1, minBuffer / Float.SIZE_BYTES / 2)) }
+        if (result == null) {
+            val minBuffer = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
+            // Búfer corto: AudioFlinger no mezcla un track nuevo hasta que su búfer se llena, así que
+            // uno grande dejaría mudas las frases que no alcanzan a llenarlo.
+            val bufferBytes = maxOf(minBuffer, (sampleRate * BUFFER_SECONDS).toInt() * Float.SIZE_BYTES)
+            result = try {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build(),
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build(),
+                    )
+                    .setBufferSizeInBytes(bufferBytes)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+                    .also {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            runCatching { it.setStartThresholdInFrames(maxOf(1, minBuffer / Float.SIZE_BYTES / 2)) }
+                        }
+                        track = it
+                        framesWritten = 0
+                        Log.d(TAG, "AudioTrack nuevo: búfer ${bufferBytes / Float.SIZE_BYTES} frames, mínimo ${minBuffer / Float.SIZE_BYTES}")
                     }
-                    track = it
-                    framesWritten = 0
-                    Log.d(TAG, "AudioTrack nuevo: búfer ${bufferBytes / Float.SIZE_BYTES} frames, mínimo ${minBuffer / Float.SIZE_BYTES}")
-                }
-        } catch (e: Exception) {
-            null
+            } catch (e: Exception) {
+                null
+            } ?: return null
         }
+        val currentRate = runCatching { result.playbackParams.speed }.getOrDefault(1f)
+        if (abs(currentRate - playbackRate) > 0.01f) {
+            runCatching { result.playbackParams = PlaybackParams().setSpeed(playbackRate).setPitch(1f) }
+                .onFailure { Log.w(TAG, "No se pudo fijar la velocidad de reproducción $playbackRate", it) }
+        }
+        return result
     }
 
     private companion object {
         const val TAG = "VoxLibris.TTS"
         const val STALL_MS = 1500L
         const val MAX_PLAY_ATTEMPTS = 2
-        /** El adelanto para pedir la frase siguiente ya no depende del búfer: se mide sobre lo que falta por escribir. */
+        /** El adelanto para pedir la frase siguiente no depende del búfer: se mide sobre lo que falta por sonar. */
         const val BUFFER_SECONDS = 0.25
     }
 }

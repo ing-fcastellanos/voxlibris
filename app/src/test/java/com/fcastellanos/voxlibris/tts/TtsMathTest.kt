@@ -63,4 +63,39 @@ class TtsMathTest {
         assertNull(SupertonicModel.languageCode(org.readium.r2.shared.util.Language("eu")))
         assertNull(SupertonicModel.languageCode(null))
     }
+
+    @Test
+    fun `short text stays whole`() {
+        val pieces = TtsMath.splitForSynthesis("Hola, mundo.", 150)
+        assertEquals(listOf(TtsMath.Piece("Hola, mundo.", 0)), pieces)
+    }
+
+    @Test
+    fun `long text splits at punctuation with correct offsets`() {
+        val text = "Ramsa había reclutado a Rin para que lo ayudase, y fortificar los callejones traseros era lo único que importaba; el embarcadero esperaba. Nadie dijo nada más."
+        val pieces = TtsMath.splitForSynthesis(text, 60)
+        assertTrue(pieces.size >= 3)
+        for (piece in pieces) {
+            assertTrue(piece.text.length <= 60)
+            assertEquals(piece.text, text.substring(piece.offset, piece.offset + piece.text.length))
+        }
+        assertTrue(pieces.first().text.endsWith(","))
+        // El último trozo puede juntar frases cortas si caben; lo que importa es que termine donde termina el texto.
+        assertTrue(pieces.last().text.endsWith("Nadie dijo nada más."))
+        assertEquals(text.replace(" ", ""), pieces.joinToString("") { it.text.replace(" ", "") })
+    }
+
+    @Test
+    fun `falls back to spaces and never emits blank pieces`() {
+        val text = "una " + "palabra ".repeat(40) + "final"
+        val pieces = TtsMath.splitForSynthesis(text, 50)
+        assertTrue(pieces.all { it.text.isNotBlank() && it.text.length <= 50 })
+        assertEquals(emptyList<TtsMath.Piece>(), TtsMath.splitForSynthesis("   ", 50))
+    }
+
+    @Test
+    fun `word range by absolute index`() {
+        assertEquals(5 until 10, TtsMath.wordRangeAtIndex("Hola mundo cruel", 7))
+        assertEquals(0 until 4, TtsMath.wordRangeAtIndex("Hola mundo cruel", -3))
+    }
 }
