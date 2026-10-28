@@ -63,7 +63,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.text.format.DateUtils
 import com.fcastellanos.voxlibris.R
+import com.fcastellanos.voxlibris.data.Highlight
 import com.fcastellanos.voxlibris.VoxLibrisApp
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.tts.SupertonicModel
@@ -93,6 +95,9 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
     var showToc by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showVoices by rememberSaveable { mutableStateOf(false) }
+    var showHighlights by rememberSaveable { mutableStateOf(false) }
+    val highlights by viewModel.highlights.collectAsStateWithLifecycle()
+    val tappedHighlight by viewModel.tappedHighlight.collectAsStateWithLifecycle()
 
     val readAloud = viewModel.readAloud
     val activeBookId by readAloud.activeBookId.collectAsStateWithLifecycle()
@@ -124,6 +129,9 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
                         IconButton(onClick = onListen) {
                             Icon(painterResource(R.drawable.ic_headphones), contentDescription = stringResource(R.string.listen))
                         }
+                    }
+                    IconButton(onClick = { showHighlights = true }) {
+                        Icon(painterResource(R.drawable.ic_bookmark), contentDescription = stringResource(R.string.highlights_title))
                     }
                     IconButton(onClick = { showToc = true }) {
                         Icon(painterResource(R.drawable.ic_toc), contentDescription = stringResource(R.string.toc))
@@ -188,6 +196,30 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
             createEditor = viewModel::createPreferencesEditor,
             onChange = viewModel::updatePreferences,
             onDismiss = { showSettings = false },
+        )
+    }
+    if (showHighlights) {
+        HighlightsSheet(
+            highlights = highlights,
+            onGo = { highlight ->
+                viewModel.goToHighlight(highlight)
+                showHighlights = false
+            },
+            onDelete = viewModel::deleteHighlight,
+            onDismiss = { showHighlights = false },
+        )
+    }
+    tappedHighlight?.let { highlight ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissTappedHighlight,
+            title = { Text(stringResource(R.string.highlight_dialog_title)) },
+            text = { Text("“${highlight.text}”", maxLines = 8, overflow = TextOverflow.Ellipsis) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteHighlight(highlight.id) }) { Text(stringResource(R.string.delete_highlight)) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissTappedHighlight) { Text(stringResource(R.string.close)) }
+            },
         )
     }
     if (showVoices) {
@@ -372,6 +404,52 @@ private fun ProgressBar(locator: Locator?, positions: List<Locator>, onSeek: (In
                 )
                 percent?.let {
                     Text(stringResource(R.string.progress_percent, it), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HighlightsSheet(
+    highlights: List<Highlight>,
+    onGo: (Highlight) -> Unit,
+    onDelete: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = stringResource(R.string.highlights_title),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        if (highlights.isEmpty()) {
+            Text(
+                text = stringResource(R.string.highlights_empty),
+                modifier = Modifier.padding(24.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            LazyColumn(Modifier.navigationBarsPadding()) {
+                items(highlights, key = { it.id }) { highlight ->
+                    ListItem(
+                        headlineContent = {
+                            Text("“${highlight.text}”", maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        },
+                        supportingContent = {
+                            Text(
+                                text = DateUtils.getRelativeTimeSpanString(highlight.createdAt).toString(),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        trailingContent = {
+                            IconButton(onClick = { onDelete(highlight.id) }) {
+                                Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.delete_highlight))
+                            }
+                        },
+                        modifier = Modifier.clickable { onGo(highlight) },
+                    )
                 }
             }
         }

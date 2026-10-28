@@ -93,4 +93,14 @@
     <string name="copy">Copiar</string>
     <string name="share">Compartir</string>
     <string name="text_copied">Texto copiado</string>
+
+    <!-- Resaltados -->
+    <string name="highlight">Resaltar</string>
+    <string name="highlights_title">Resaltados</string>
+    <string name="highlights_empty">Todavía no resaltaste nada. Mantené pulsado un texto del libro y elegí “Resaltar”.</string>
+    <string name="highlight_saved">Resaltado guardado</string>
+    <string name="highlight_dialog_title">Resaltado</string>
+    <string name="delete_highlight">Eliminar resaltado</string>
+    <string name="go_to_highlight">Ir al pasaje</string>
+    <string name="close">Cerrar</string>
 </resources>

@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.fcastellanos.voxlibris.data.BookRepository
+import com.fcastellanos.voxlibris.data.Highlight
+import com.fcastellanos.voxlibris.data.HighlightRepository
 import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReaderSession
@@ -19,10 +21,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.Selection
 import org.readium.r2.shared.publication.services.content.Content
 import org.readium.r2.shared.publication.services.content.content
@@ -46,6 +52,8 @@ class ReaderViewModel(
     private val preferencesStore: ReadingPreferencesStore,
     private val applicationScope: CoroutineScope,
     val readAloud: ReadAloudManager,
+    private val highlightRepository: HighlightRepository,
+    private val highlightTint: Int,
 ) : ViewModel(), EpubNavigatorFragment.Listener {
 
     sealed interface Navigation {
@@ -73,6 +81,41 @@ class ReaderViewModel(
     val overlayVisible: StateFlow<Boolean> = _overlayVisible.asStateFlow()
 
     val preferences: StateFlow<EpubPreferences> = preferencesStore.preferences
+
+    /** Resaltados del libro, en orden de lectura. */
+    val highlights: StateFlow<List<Highlight>> = highlightRepository.observe(bookId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Los mismos resaltados como decoraciones para que Readium los dibuje sobre el texto. */
+    val highlightDecorations: StateFlow<List<Decoration>> = highlights
+        .map { list -> list.map { Decoration(id = decorationId(it.id), locator = it.locator, style = Decoration.Style.Highlight(tint = it.color)) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Resaltado que el usuario tocó en el texto, para ofrecer eliminarlo. */
+    private val _tappedHighlight = MutableStateFlow<Highlight?>(null)
+    val tappedHighlight: StateFlow<Highlight?> = _tappedHighlight.asStateFlow()
+
+    fun addHighlight(selection: Selection) {
+        viewModelScope.launch { highlightRepository.add(bookId, selection.locator, highlightTint) }
+    }
+
+    fun deleteHighlight(id: Long) {
+        viewModelScope.launch { highlightRepository.delete(id) }
+        if (_tappedHighlight.value?.id == id) _tappedHighlight.value = null
+    }
+
+    fun goToHighlight(highlight: Highlight) {
+        _navigation.trySend(Navigation.ToLocator(highlight.locator))
+    }
+
+    fun onHighlightDecorationTapped(decorationId: String) {
+        val id = decorationId.removePrefix(HIGHLIGHT_DECORATION_PREFIX).toLongOrNull() ?: return
+        _tappedHighlight.value = highlights.value.firstOrNull { it.id == id }
+    }
+
+    fun dismissTappedHighlight() {
+        _tappedHighlight.value = null
+    }
 
     private val _navigation = Channel<Navigation>(Channel.BUFFERED)
     val navigation: Flow<Navigation> = _navigation.receiveAsFlow()
@@ -189,7 +232,11 @@ class ReaderViewModel(
     }
 
     companion object {
+        const val HIGHLIGHTS_GROUP = "highlights"
+        private const val HIGHLIGHT_DECORATION_PREFIX = "highlight-"
         private const val SAVE_DEBOUNCE_MS = 600L
+
+        fun decorationId(highlightId: Long): String = HIGHLIGHT_DECORATION_PREFIX + highlightId
         private const val NEEDLE_CHARS = 24
         private const val MAX_ELEMENTS_TO_SCAN = 400
         private val WHITESPACE = Regex("\\s+")
@@ -203,6 +250,8 @@ class ReaderViewModel(
                     preferencesStore = container.readingPreferences,
                     applicationScope = container.applicationScope,
                     readAloud = container.readAloud,
+                    highlightRepository = container.highlightRepository,
+                    highlightTint = container.highlightTint,
                 )
             }
         }

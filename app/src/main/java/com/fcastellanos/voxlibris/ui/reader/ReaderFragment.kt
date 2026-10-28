@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
+import org.readium.r2.navigator.DecorableNavigator
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.input.InputListener
@@ -106,23 +107,37 @@ class ReaderFragment : Fragment() {
      */
     private val selectionActionMode = object : BaseActionModeCallback() {
         override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-            menu.add(Menu.NONE, MENU_READ_FROM_HERE, 0, R.string.read_from_here)
+            menu.add(Menu.NONE, MENU_HIGHLIGHT, 0, R.string.highlight)
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
-            menu.add(Menu.NONE, MENU_COPY, 1, R.string.copy)
+            menu.add(Menu.NONE, MENU_READ_FROM_HERE, 1, R.string.read_from_here)
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
-            menu.add(Menu.NONE, MENU_SHARE, 2, R.string.share)
+            menu.add(Menu.NONE, MENU_COPY, 2, R.string.copy)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+            menu.add(Menu.NONE, MENU_SHARE, 3, R.string.share)
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
             return true
         }
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
             when (item.itemId) {
+                MENU_HIGHLIGHT -> withSelection { selection ->
+                    viewModel.addHighlight(selection)
+                    Toast.makeText(requireContext(), R.string.highlight_saved, Toast.LENGTH_SHORT).show()
+                }
                 MENU_READ_FROM_HERE -> withSelection { selection -> readFromSelection(selection) }
                 MENU_COPY -> withSelection { selection -> copyToClipboard(selection.locator.text.highlight.orEmpty()) }
                 MENU_SHARE -> withSelection { selection -> shareText(selection.locator.text.highlight.orEmpty()) }
                 else -> return false
             }
             mode.finish()
+            return true
+        }
+    }
+
+    /** Tocar un resaltado dibujado en el texto abre el diálogo para eliminarlo. */
+    private val highlightListener = object : DecorableNavigator.Listener {
+        override fun onDecorationActivated(event: DecorableNavigator.OnActivatedEvent): Boolean {
+            viewModel.onHighlightDecorationTapped(event.decoration.id)
             return true
         }
     }
@@ -208,6 +223,8 @@ class ReaderFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val navigator = navigator ?: return
 
+        navigator.addDecorationListener(ReaderViewModel.HIGHLIGHTS_GROUP, highlightListener)
+
         // Toques en los bordes pasan de página; en el centro muestran u ocultan la interfaz.
         navigator.addInputListener(DirectionalNavigationAdapter(navigator, animatedTransition = true))
         navigator.addInputListener(object : InputListener {
@@ -234,6 +251,7 @@ class ReaderFragment : Fragment() {
                         }
                     }
                 }
+                launch { viewModel.highlightDecorations.collect { navigator.applyDecorations(it, ReaderViewModel.HIGHLIGHTS_GROUP) } }
                 launch { viewModel.externalLinks.collect { openExternal(it) } }
                 launch { viewModel.overlayVisible.collect { setSystemBarsVisible(it) } }
                 val readAloud = viewModel.readAloud
@@ -260,6 +278,7 @@ class ReaderFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        navigator?.removeDecorationListener(highlightListener)
         navigator = null
         navigatorContainer = null
         super.onDestroyView()
@@ -292,6 +311,7 @@ class ReaderFragment : Fragment() {
 
     companion object {
         const val TAG = "reader"
+        private const val MENU_HIGHLIGHT = 4
         private const val MENU_READ_FROM_HERE = 1
         private const val MENU_COPY = 2
         private const val MENU_SHARE = 3

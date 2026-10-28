@@ -90,6 +90,7 @@ Usar el *Quijote* para 2.2 a 2.6; el libro de prueba sirve para lo demás.
 | 2.8 | Rotar dentro del lector | Mantiene la posición. Sin crash. |
 | 2.9 | Opciones de desarrollador → "No conservar actividades"; con el lector abierto ir al inicio y volver | El lector se cierra solo y vuelve a la biblioteca sin crash (es el comportamiento diseñado: tras una muerte de proceso la publicación ya no está abierta). Desactivar la opción al terminar. |
 | 2.10 | Con un EPUB que tenga enlaces web, tocar uno | Se abre el navegador. |
+| 2.11 | Mantener pulsado un texto → "Resaltar" | Aviso "Resaltado guardado" y el pasaje queda marcado en verde menta. El icono de marcador de la barra superior abre "Resaltados" con la lista: tocar uno lleva al pasaje; el tacho lo borra. Tocar un resaltado en el texto abre un diálogo con el pasaje y "Eliminar resaltado". Los resaltados sobreviven a cerrar y reabrir el libro, y se borran con el libro. |
 
 ---
 

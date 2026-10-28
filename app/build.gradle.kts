@@ -133,4 +133,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.room3.testing)
+    androidTestImplementation(libs.androidx.sqlite.framework)
 }

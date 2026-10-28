@@ -29,6 +29,7 @@ El proyecto está en construcción. La exploración técnica ya cerró y la base
 - Índice del libro con el capítulo actual resaltado, barra de progreso con salto a cualquier posición.
 - Ajustes de lectura persistentes: tema claro, sepia u oscuro; tamaño de letra; interlineado; respetar o no los estilos del editor.
 - Guarda la posición de lectura por libro y la retoma al reabrir; la biblioteca ordena por último leído y muestra el porcentaje.
+- Mantener pulsado un texto abre un menú para **resaltarlo**, leer en voz alta desde ahí, copiarlo o compartirlo. Los resaltados se guardan por libro (Room, migración automática) y se consultan desde el marcador de la barra superior: tocar uno lleva al pasaje; también se pueden borrar desde la lista o tocándolos en el texto.
 - **Lectura en voz alta** con el botón de auriculares: la frase que suena se resalta y la página la sigue. Controles de pausa, frase anterior y siguiente; la lectura se encadena sin silencios entre frases.
 - **Catálogo de lectores**: diez voces (cinco femeninas, cinco masculinas) con muestra de audio, velocidad de 0,6× a 2,0× y calidad Auto, Rápida o Alta. "Auto" mide el teléfono una vez y elige 4 u 8 pasos de difusión. Por encima de 1,3× el modelo no se fuerza: sintetiza a 1,3× y el reproductor estira el audio conservando el tono.
 - Las voces se descargan dentro de la app una sola vez (123 MB, con verificación SHA-256) y después todo funciona sin conexión.
