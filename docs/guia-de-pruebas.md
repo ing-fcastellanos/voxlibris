@@ -123,7 +123,7 @@ Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto de
 | ID | Prueba | Resultado esperado |
 |---|---|---|
 | 4.1 | Primer "Escuchar" en Android 13 o superior | Aparece el permiso de notificaciones. Aceptar. |
-| 4.2 | Al empezar a leer, bajar el panel de notificaciones | Notificación multimedia con título del libro, portada y controles ▶/⏸, ⏮, ⏭ que funcionan. |
+| 4.2 | Al empezar a leer, bajar el panel de notificaciones | Notificación multimedia con título y autor del libro, portada y tres controles: frase anterior, ▶/⏸ y frase siguiente. Los tres funcionan; los de frase son comandos propios de VoxLibris (el adaptador de Readium no publica saltos), así que también responden a los botones de auriculares que envíen "anterior/siguiente". |
 | 4.3 | Bloquear el teléfono | Sigue leyendo al menos diez minutos con la pantalla apagada. Los controles aparecen en la pantalla de bloqueo. Si se corta, revisar el paso 3 de la preparación (ahorro de batería de MIUI) y repetir. |
 | 4.4 | Salir del lector con Atrás mientras lee | Sigue sonando. En la biblioteca aparece la barra "Leyendo: <título>" con ▶/⏸, "Abrir" y ✕. "Abrir" vuelve al lector con el resaltado en la frase actual. |
 | 4.5 | Ir al inicio y tocar la notificación | Abre el lector del libro que suena. |
