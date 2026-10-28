@@ -54,7 +54,7 @@ Logs durante toda la sesión, en otra terminal:
 adb logcat -s VoxLibris.TTS:* AndroidRuntime:E
 ```
 
-Los mensajes propios de la app salen con la etiqueta `VoxLibris.TTS`: carga del modelo, calibración (RTF), cada frase sintetizada con su tiempo y pasos, descarga e instalación de voces, inicio y fin de la lectura.
+Los mensajes propios de la app salen con la etiqueta `VoxLibris.TTS`: carga del modelo, calibración (RTF), cada frase sintetizada con su tiempo y pasos, cada `play()` y `onDone`, interrupciones, descarga e instalación de voces, inicio y fin de la lectura. Las líneas con "reintento", "lo recreo" o "no responde" indican un atasco de la salida de audio y son siempre un fallo a reportar.
 
 ---
 
@@ -106,9 +106,9 @@ Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto de
 | 3.5 | En el lector, tocar los auriculares **sin** voces instaladas (borrarlas antes desde "Lectores") | Diálogo "Descargar voces". Al aceptar, la barra inferior muestra el progreso y al terminar la lectura arranca sola. |
 | 3.6 | Tocar los auriculares con voces instaladas | "Preparando la voz…" (uno a cuatro segundos la primera vez) y luego "Leyendo". La frase actual queda resaltada en amarillo, el resaltado avanza frase a frase y la página pasa sola al llegar al final. |
 | 3.7 | Escuchar dos minutos seguidos | Sin silencios perceptibles entre frases (como mucho una pausa natural). Si hay huecos, anotar las líneas "Frase sintetizada: … RTF=… lead=…" del logcat. |
-| 3.8 | Pausar y reanudar | La pausa corta el audio al instante. Al reanudar retoma la frase en curso desde su inicio. |
-| 3.9 | Frase anterior y frase siguiente | Salta de frase y el resaltado acompaña. |
-| 3.10 | Tocar el chip "Lucía · 1,0×" y cambiar voz y velocidad | Se aplican a partir de la frase siguiente, sin detener la lectura. |
+| 3.8 | Pausar y reanudar | La pausa corta el audio al instante. Al reanudar muestra "Preparando la voz…" entre 1 y 4 s (vuelve a sintetizar la frase) y retoma la frase en curso desde su inicio. |
+| 3.9 | Frase anterior y frase siguiente | Corta el audio, muestra "Preparando la voz…" entre 1 y 3 s y arranca la frase destino; el resaltado acompaña. |
+| 3.10 | Tocar el chip "Lucía · 1,0×" y cambiar voz y velocidad | Readium reinicia la frase en curso con la voz o velocidad nuevas: se oye un corte, "Preparando la voz…" entre 1 y 8 s (según lo larga que fuera la frase que se estaba sintetizando) y sigue desde el principio de esa frase. |
 | 3.11 | Con la lectura en marcha, reproducir música en otra app; luego recibir una llamada | En ambos casos la lectura se pausa. No se reanuda sola (es lo esperado). |
 | 3.12 | Escuchar el libro de prueba hasta el final | Al terminar el último párrafo la lectura se detiene y la barra de voz desaparece. |
 | 3.13 | Comparar calidad "Rápida" y "Alta" con la misma frase | "Rápida" responde antes; "Alta" suena algo más limpia. En "Auto", el logcat muestra `pasos=4` si el RTF calibrado fue mayor que 0,5 y `pasos=8` si no. |
@@ -137,8 +137,8 @@ Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto de
 
 | Medición | Cómo | Valor esperado en POCO X3 Pro |
 |---|---|---|
-| RTF calibrado | Línea "Calibración: … RTF=…" del logcat | Entre 0,3 y 0,6 con 8 pasos. Por encima de 0,5, "Auto" pasa a 4 pasos. |
-| RTF por frase | Líneas "Frase sintetizada" | Estable; el valor `lead` resultante entre 1,5 y 2,5 s. |
+| RTF calibrado | Línea "Calibración: … RTF=…" del logcat | Medido en el POCO: 0,82 con 8 pasos (2 hilos). Por encima de 0,5, "Auto" pasa a 4 pasos. |
+| RTF por frase | Líneas "Frase sintetizada" | Medido en el POCO con 4 pasos y 4 hilos: entre 0,4 y 0,6 (frases cortas de un par de palabras dan valores altos pero irrelevantes). El valor `lead` resultante entre 3,5 y 6 s. |
 | Memoria | `adb shell dumpsys meminfo com.fcastellanos.voxlibris \| head -30` durante la lectura | Entre 300 y 450 MB de PSS. |
 | Batería | Anotar el porcentaje antes y después de 30 minutos de lectura con pantalla apagada | Para registrar; no hay objetivo todavía. |
 
