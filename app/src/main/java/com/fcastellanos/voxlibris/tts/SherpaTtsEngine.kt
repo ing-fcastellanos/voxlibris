@@ -114,6 +114,9 @@ class SherpaTtsEngine(
             return
         }
         synthExecutor.execute {
+            // Si el primer trozo es muy corto, se retiene hasta tener el segundo: así no hay un
+            // hueco justo después de arrancar la frase.
+            var held: Runnable? = null
             for ((index, piece) in pieces.withIndex()) {
                 if (request.cancelled) {
                     Log.d(TAG, "Síntesis descartada (frase cancelada ${requestId.value.take(8)}, trozo ${index + 1}/${pieces.size})")
@@ -139,8 +142,16 @@ class SherpaTtsEngine(
                     continue
                 }
                 request.samplesPending.addAndGet(audio.first.size.toLong())
-                playExecutor.execute { playPiece(request, piece, index, audio.first, audio.second, isLast) }
+                val task = Runnable { playPiece(request, piece, index, audio.first, audio.second, isLast) }
+                if (index == 0 && !isLast && audio.first.size < audio.second * HOLD_FIRST_PIECE_UNDER_SECONDS) {
+                    held = task
+                    continue
+                }
+                held?.let { playExecutor.execute(it) }
+                held = null
+                playExecutor.execute(task)
             }
+            held?.let { if (!request.cancelled) playExecutor.execute(it) }
         }
     }
 
@@ -396,5 +407,6 @@ class SherpaTtsEngine(
         const val MAX_PLAY_ATTEMPTS = 2
         /** El adelanto para pedir la frase siguiente no depende del búfer: se mide sobre lo que falta por sonar. */
         const val BUFFER_SECONDS = 0.25
+        const val HOLD_FIRST_PIECE_UNDER_SECONDS = 1.5
     }
 }

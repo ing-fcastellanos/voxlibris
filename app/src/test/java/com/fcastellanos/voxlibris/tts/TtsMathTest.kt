@@ -94,6 +94,15 @@ class TtsMathTest {
     }
 
     @Test
+    fun `first piece is shorter than the rest`() {
+        val text = ("palabra ".repeat(60)).trim()
+        val pieces = TtsMath.splitForSynthesis(text, 110, 60)
+        assertTrue(pieces.first().text.length <= 60)
+        assertTrue(pieces.drop(1).all { it.text.length <= 110 })
+        assertTrue(pieces.drop(1).any { it.text.length > 60 })
+    }
+
+    @Test
     fun `word range by absolute index`() {
         assertEquals(5 until 10, TtsMath.wordRangeAtIndex("Hola mundo cruel", 7))
         assertEquals(0 until 4, TtsMath.wordRangeAtIndex("Hola mundo cruel", -3))

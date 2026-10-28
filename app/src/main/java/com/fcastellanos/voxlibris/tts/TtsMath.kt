@@ -21,16 +21,18 @@ object TtsMath {
      * puntuación fuerte, luego tras comas y similares, y en último caso en un espacio.
      * Trozos cortos significan menos latencia tras una acción y menos trabajo desperdiciado al cancelar.
      */
-    fun splitForSynthesis(text: String, maxChars: Int = DEFAULT_PIECE_CHARS): List<Piece> {
+    fun splitForSynthesis(text: String, maxChars: Int = DEFAULT_PIECE_CHARS, firstMaxChars: Int = DEFAULT_FIRST_PIECE_CHARS): List<Piece> {
         val pieces = ArrayList<Piece>()
         val n = text.length
         var start = 0
         while (start < n) {
             while (start < n && text[start].isWhitespace()) start++
             if (start >= n) break
-            var end = minOf(n, start + maxChars)
+            // El primer trozo es más corto para que la frase empiece a sonar antes.
+            val limit = if (pieces.isEmpty()) minOf(maxChars, firstMaxChars) else maxChars
+            var end = minOf(n, start + limit)
             if (end < n) {
-                val minEnd = start + maxChars / 3
+                val minEnd = start + limit / 3
                 var cut = -1
                 for (set in CUT_SETS) {
                     var i = end - 1
@@ -53,7 +55,9 @@ object TtsMath {
     }
 
     private val CUT_SETS = listOf(".!?…", ",;:—–)", " ")
-    const val DEFAULT_PIECE_CHARS = 150
+    /** Unos 110 caracteres son 5 a 7 s de audio: se sintetizan en 3 s mientras suena el trozo anterior. */
+    const val DEFAULT_PIECE_CHARS = 110
+    const val DEFAULT_FIRST_PIECE_CHARS = 60
 
     /** Palabra (rango de caracteres, fin exclusivo) que corresponde a una fracción del audio reproducido. */
     fun wordRangeAt(text: String, fraction: Double): IntRange? {
