@@ -3,6 +3,7 @@ package com.fcastellanos.voxlibris.tts
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import com.k2fsa.sherpa.onnx.OfflineTts
@@ -67,6 +68,9 @@ class SherpaTtsEngine(
     @Volatile private var track: AudioTrack? = null
     private var framesWritten = 0L
 
+    /** Frase cuyo audio se está escribiendo ahora; puede ser distinta de [current] por el aviso anticipado. */
+    @Volatile private var playing: Request? = null
+
     override fun submitPreferences(preferences: SherpaTtsPreferences) {
         settingsFlow.value = preferences.resolve(contentLanguage)
     }
@@ -116,8 +120,9 @@ class SherpaTtsEngine(
         val request = current
         current = null
         request?.cancelled = true
+        playing?.cancelled = true
         val stale = track
-        runCatching { stale?.pause() } // silencio inmediato; además interrumpe un write bloqueante
+        runCatching { stale?.pause() } // silencio inmediato
         Log.d(TAG, "interrupt(): frase=${request?.id?.value?.take(8)} track=${stale != null}")
         playExecutor.execute {
             if (track === stale) {
@@ -135,7 +140,7 @@ class SherpaTtsEngine(
         current = null
         playExecutor.execute {
             track?.let { t ->
-                val remaining = ((framesWritten - headPosition(t)).toDouble() / t.sampleRate).coerceIn(0.0, 3.0)
+                val remaining = ((framesWritten - headPosition(t)).toDouble() / t.sampleRate).coerceIn(0.0, 1.0)
                 runCatching { t.stop() } // deja sonar lo que queda en cola
                 SystemClock.sleep((remaining * 1000).toLong() + 50)
                 runCatching { t.release() }
@@ -164,77 +169,95 @@ class SherpaTtsEngine(
         return samples to generated.sampleRate
     }
 
-    private fun play(request: Request, samples: FloatArray, sampleRate: Int, attempt: Int = 0) {
+    /**
+     * Escribe la frase en el AudioTrack al ritmo de la reproducción (búfer corto, escrituras no
+     * bloqueantes). Avisa `onDone` a Readium cuando lo que falta por sonar baja del adelanto,
+     * aunque siga escribiendo: la frase siguiente se sintetiza mientras tanto y su escritura queda
+     * encolada detrás en este mismo hilo, así que suena sin corte.
+     */
+    private fun play(request: Request, samples: FloatArray, sampleRate: Int, attempt: Int = 0, doneAlreadyReported: Boolean = false) {
         if (request.cancelled || closed.get()) return
         val track = ensureTrack(sampleRate) ?: run {
             Log.w(TAG, "No se pudo crear el AudioTrack")
             listener?.onError(request.id, SherpaTtsError.Audio("no se pudo crear la salida de audio"))
             return
         }
-        val startFrame = framesWritten
-        val endFrame = startFrame + samples.size
-        val lead = TtsMath.leadSeconds(rtf.value)
-        Log.d(TAG, "play(): frase=${request.id.value.take(8)} ${"%.2f".format(samples.size.toDouble() / sampleRate)} s, cola previa=${"%.2f".format((startFrame - headPosition(track)).toDouble() / sampleRate)} s, lead=${"%.1f".format(lead)} s" + if (attempt > 0) " (reintento $attempt)" else "")
+        playing = request
+        try {
+            // Arranca antes de escribir: con el búfer vacío AudioFlinger no exige llenarlo para empezar.
+            if (track.playState != AudioTrack.PLAYSTATE_PLAYING) track.play()
+            val startFrame = framesWritten
+            val endFrame = startFrame + samples.size
+            val lead = TtsMath.leadSeconds(rtf.value)
+            Log.d(TAG, "play(): frase=${request.id.value.take(8)} ${"%.2f".format(samples.size.toDouble() / sampleRate)} s, cola previa=${"%.2f".format((startFrame - headPosition(track)).toDouble() / sampleRate)} s, lead=${"%.1f".format(lead)} s" + if (attempt > 0) " (reintento $attempt)" else "")
 
-        val chunk = sampleRate / 10
-        var offset = 0
-        var lastHead = headPosition(track)
-        var lastAdvanceAt = SystemClock.elapsedRealtime()
-        var restarted = false
-        while (!request.cancelled) {
-            // 1) Escribir lo que quepa, sin bloquear. El track arranca recién cuando ya tiene datos:
-            //    un track vacío en reproducción sufre underrun y AudioFlinger puede deshabilitarlo.
-            if (offset < samples.size) {
-                val count = minOf(chunk, samples.size - offset)
-                val written = track.write(samples, offset, count, AudioTrack.WRITE_NON_BLOCKING)
-                if (written < 0) {
-                    Log.w(TAG, "AudioTrack.write devolvió $written (estado=${track.playState})")
-                    listener?.onError(request.id, SherpaTtsError.Audio("write devolvió $written"))
-                    return
+            val chunk = sampleRate / 20
+            var offset = 0
+            var doneReported = doneAlreadyReported
+            var lastHead = headPosition(track)
+            var lastAdvanceAt = SystemClock.elapsedRealtime()
+            var restarted = false
+            while (!request.cancelled) {
+                if (offset < samples.size) {
+                    val written = track.write(samples, offset, minOf(chunk, samples.size - offset), AudioTrack.WRITE_NON_BLOCKING)
+                    if (written < 0) {
+                        Log.w(TAG, "AudioTrack.write devolvió $written (estado=${track.playState})")
+                        listener?.onError(request.id, SherpaTtsError.Audio("write devolvió $written"))
+                        return
+                    }
+                    offset += written
+                    framesWritten += written
                 }
-                offset += written
-                framesWritten += written
-                if (written > 0 && track.playState != AudioTrack.PLAYSTATE_PLAYING) track.play()
-            }
+                reportProgress(request, track, startFrame, endFrame)
+                val head = headPosition(track)
+                val queued = (framesWritten - head).coerceAtLeast(0L).toDouble() / sampleRate
+                val remaining = (samples.size - offset).toDouble() / sampleRate + queued
+                if (!doneReported && remaining <= lead) {
+                    doneReported = true
+                    markStarted(request)
+                    Log.d(TAG, "onDone anticipado: frase=${request.id.value.take(8)} quedan ${"%.1f".format(remaining)} s por sonar")
+                    listener?.onDone(request.id)
+                }
+                if (offset >= samples.size) break
 
-            // 2) Progreso y fin anticipado para que Readium pida la frase siguiente a tiempo.
-            reportProgress(request, track, startFrame, endFrame)
-            val head = headPosition(track)
-            if (offset >= samples.size && (endFrame - head).toDouble() / sampleRate <= lead) break
-
-            // 3) Detección de atasco: el cabezal no avanza aunque hay audio pendiente.
-            val now = SystemClock.elapsedRealtime()
-            if (head != lastHead) {
-                lastHead = head
-                lastAdvanceAt = now
-            } else if (framesWritten > head && now - lastAdvanceAt > STALL_MS) {
-                if (!restarted) {
-                    Log.w(TAG, "AudioTrack sin avance durante ${now - lastAdvanceAt} ms (estado=${track.playState}); reintento play()")
-                    runCatching { track.play() }
-                    restarted = true
+                // Vigilante: el cabezal no avanza aunque hay audio en cola.
+                val now = SystemClock.elapsedRealtime()
+                if (head != lastHead) {
+                    lastHead = head
                     lastAdvanceAt = now
-                } else if (attempt < MAX_PLAY_ATTEMPTS) {
-                    Log.w(TAG, "AudioTrack sigue sin avanzar; lo recreo y repito lo que faltaba")
-                    val played = (head - startFrame).coerceIn(0L, samples.size.toLong()).toInt()
-                    runCatching { track.pause() }
-                    runCatching { track.flush() }
-                    runCatching { track.release() }
-                    this.track = null
-                    framesWritten = 0
-                    play(request, samples.copyOfRange(played, samples.size), sampleRate, attempt + 1)
-                    return
-                } else {
-                    Log.w(TAG, "La salida de audio no responde; abandono la frase ${request.id.value.take(8)}")
-                    listener?.onError(request.id, SherpaTtsError.Audio("la salida de audio se detuvo"))
-                    return
+                } else if (framesWritten > head && now - lastAdvanceAt > STALL_MS) {
+                    if (!restarted) {
+                        Log.w(TAG, "AudioTrack sin avance durante ${now - lastAdvanceAt} ms (estado=${track.playState}); reintento play()")
+                        runCatching { track.play() }
+                        restarted = true
+                        lastAdvanceAt = now
+                    } else if (attempt < MAX_PLAY_ATTEMPTS) {
+                        Log.w(TAG, "AudioTrack sigue sin avanzar; lo recreo y repito lo que faltaba")
+                        val played = (head - startFrame).coerceIn(0L, offset.toLong()).toInt()
+                        runCatching { track.pause() }
+                        runCatching { track.flush() }
+                        runCatching { track.release() }
+                        this.track = null
+                        framesWritten = 0
+                        play(request, samples.copyOfRange(played, samples.size), sampleRate, attempt + 1, doneReported)
+                        return
+                    } else {
+                        Log.w(TAG, "La salida de audio no responde; abandono la frase ${request.id.value.take(8)}")
+                        listener?.onError(request.id, SherpaTtsError.Audio("la salida de audio se detuvo"))
+                        return
+                    }
                 }
+                SystemClock.sleep(10)
             }
-            SystemClock.sleep(if (offset < samples.size) 10L else 30L)
+            if (request.cancelled) return
+            if (!doneReported) {
+                markStarted(request)
+                Log.d(TAG, "onDone: frase=${request.id.value.take(8)} escrita por completo")
+                listener?.onDone(request.id)
+            }
+        } finally {
+            if (playing === request) playing = null
         }
-        if (request.cancelled) return
-        markStarted(request)
-        Log.d(TAG, "onDone anticipado: frase=${request.id.value.take(8)} quedan ${"%.1f".format((endFrame - headPosition(track)).toDouble() / sampleRate)} s en cola")
-        listener?.onDone(request.id)
     }
 
     private fun reportProgress(request: Request, track: AudioTrack, startFrame: Long, endFrame: Long) {
@@ -265,7 +288,9 @@ class SherpaTtsEngine(
             track = null
         }
         val minBuffer = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
-        val bufferBytes = maxOf(minBuffer, sampleRate * Float.SIZE_BYTES * BUFFER_SECONDS)
+        // Búfer corto: AudioFlinger no mezcla un track nuevo hasta que su búfer se llena, así que
+        // uno grande dejaría mudas las frases que no alcanzan a llenarlo.
+        val bufferBytes = maxOf(minBuffer, (sampleRate * BUFFER_SECONDS).toInt() * Float.SIZE_BYTES)
         return try {
             AudioTrack.Builder()
                 .setAudioAttributes(
@@ -285,8 +310,12 @@ class SherpaTtsEngine(
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
                 .also {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        runCatching { it.setStartThresholdInFrames(maxOf(1, minBuffer / Float.SIZE_BYTES / 2)) }
+                    }
                     track = it
                     framesWritten = 0
+                    Log.d(TAG, "AudioTrack nuevo: búfer ${bufferBytes / Float.SIZE_BYTES} frames, mínimo ${minBuffer / Float.SIZE_BYTES}")
                 }
         } catch (e: Exception) {
             null
@@ -295,9 +324,9 @@ class SherpaTtsEngine(
 
     private companion object {
         const val TAG = "VoxLibris.TTS"
-        const val STALL_MS = 600L
+        const val STALL_MS = 1500L
         const val MAX_PLAY_ATTEMPTS = 2
-        /** Debe superar TtsMath.MAX_LEAD_SECONDS para que la frase siguiente quepa detrás de la actual. */
-        const val BUFFER_SECONDS = 8
+        /** El adelanto para pedir la frase siguiente ya no depende del búfer: se mide sobre lo que falta por escribir. */
+        const val BUFFER_SECONDS = 0.25
     }
 }
