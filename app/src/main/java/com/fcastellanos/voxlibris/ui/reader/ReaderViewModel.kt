@@ -16,8 +16,8 @@ import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReaderSession
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
+import com.fcastellanos.voxlibris.tts.StartPointResolver
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.Selection
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
@@ -40,13 +39,8 @@ import org.readium.r2.navigator.epub.EpubPreferencesEditor
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.publication.services.content.Content
-import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.publication.services.positions
 import org.readium.r2.shared.util.AbsoluteUrl
-import org.readium.r2.shared.util.Language
-import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
-import org.readium.r2.shared.util.tokenizer.TextUnit
 
 @OptIn(ExperimentalReadiumApi::class)
 class ReaderViewModel(
@@ -293,34 +287,13 @@ class ReaderViewModel(
      * el tokenizador de frases (el mismo que usa el TtsNavigator) dice cuántas frases preceden a la
      * selección dentro de ese segmento. Si no se encuentra, se arranca al principio de la página visible.
      */
-    suspend fun resolveReadAloudStart(selection: Selection, firstVisible: Locator?): ReadAloudStart = withContext(Dispatchers.Default) {
-        val fallback = ReadAloudStart(firstVisible ?: selection.locator, 0)
-        val publication = session?.publication ?: return@withContext fallback
-        val needle = selection.locator.text.highlight?.collapseSpaces()?.take(NEEDLE_CHARS)?.takeIf { it.length >= 2 }
-            ?: return@withContext fallback
-        val language = publication.metadata.languages.firstOrNull()?.let { Language(it) }
-        val tokenizer = DefaultTextContentTokenizer(TextUnit.Sentence, language)
-        val iterator = runCatching { publication.content(firstVisible ?: selection.locator)?.iterator() }.getOrNull()
-            ?: return@withContext fallback
-        var visited = 0
-        while (visited < MAX_ELEMENTS_TO_SCAN && iterator.hasNext()) {
-            val element = iterator.next()
-            visited++
-            val segments = (element as? Content.TextElement)?.segments ?: continue
-            for (segment in segments) {
-                val text = segment.text.collapseSpaces()
-                val index = text.indexOf(needle)
-                if (index < 0) continue
-                val skip = tokenizer.tokenize(text).count { range ->
-                    range.last < index && text.substring(range).isNotBlank()
-                }
-                return@withContext ReadAloudStart(segment.locator, skip)
-            }
-        }
-        fallback
+    suspend fun resolveReadAloudStart(selection: Selection, firstVisible: Locator?): ReadAloudStart {
+        val from = firstVisible ?: selection.locator
+        val publication = session?.publication ?: return ReadAloudStart(from, 0)
+        val point = StartPointResolver.resolve(publication, from, selection.locator.text.highlight)
+        return ReadAloudStart(point.locator, point.skipSentences)
     }
 
-    private fun String.collapseSpaces(): String = replace(WHITESPACE, " ").trim()
 
     fun onLocatorChanged(locator: Locator) {
         _currentLocator.value = locator
@@ -375,9 +348,6 @@ class ReaderViewModel(
         fun decorationId(highlightId: Long): String = HIGHLIGHT_DECORATION_PREFIX + highlightId
 
         fun noteDecorationId(highlightId: Long): String = decorationId(highlightId) + "-note"
-        private const val NEEDLE_CHARS = 24
-        private const val MAX_ELEMENTS_TO_SCAN = 400
-        private val WHITESPACE = Regex("\\s+")
 
         fun factory(container: AppContainer, bookId: Long): ViewModelProvider.Factory = viewModelFactory {
             initializer {

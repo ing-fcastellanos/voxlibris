@@ -160,6 +160,20 @@ class ReadAloudManager(
         return from
     }
 
+    /**
+     * Punto de arranque definitivo: la posición de página se vuelve elemento y, si el punto trae la
+     * frase (una selección o la frase donde se cortó la lectura), se calculan las frases del párrafo
+     * que hay que saltar para arrancar justo ahí. Un salto ya calculado por quien llama se respeta.
+     */
+    private suspend fun resolveStartPoint(publication: Publication, from: Locator?, skipSentences: Int): StartPointResolver.StartPoint? {
+        val resolved = resolveStart(publication, from) ?: return null
+        val text = from?.text?.highlight?.takeIf { skipSentences == 0 && it.isNotBlank() && resolved.locations.cssSelector != null }
+            ?: return StartPointResolver.StartPoint(resolved, skipSentences)
+        return StartPointResolver.resolve(publication, resolved, text).also {
+            if (it.skipSentences > 0) Log.d(TAG, "Arranque en la frase ${it.skipSentences + 1} del párrafo")
+        }
+    }
+
     /** Empieza a leer `bookId` desde `from`. Si otro libro estaba sonando, lo detiene antes. */
     fun start(bookId: Long, from: Locator?, skipSentences: Int = 0) {
         if (_activeBookId.value == bookId && navigator != null) {
@@ -169,9 +183,10 @@ class ReadAloudManager(
                 if (_status.value == Status.Playing) _status.value = Status.Preparing
                 val publication = readerRepository[bookId]?.publication
                 scope.launch {
-                    val target = publication?.let { resolveStart(it, from) } ?: from
-                    navigator?.go(target)
-                    repeat(skipSentences) { navigator?.skipToNextUtterance() }
+                    val point = publication?.let { resolveStartPoint(it, from, skipSentences) }
+                        ?: StartPointResolver.StartPoint(from, skipSentences)
+                    navigator?.go(point.locator)
+                    repeat(point.skipSentences) { navigator?.skipToNextUtterance() }
                     play()
                 }
             } else {
@@ -200,9 +215,10 @@ class ReadAloudManager(
                 _status.value = Status.Error("El libro no expone texto legible")
                 return@launch
             }
+            val point = resolveStartPoint(session.publication, from, skipSentences)
             val created = factory.createNavigator(
                 listener = this@ReadAloudManager,
-                initialLocator = resolveStart(session.publication, from),
+                initialLocator = point?.locator,
                 initialPreferences = ttsPreferences.preferences.value,
             ).getOrElse {
                 _status.value = Status.Error(it.message)
@@ -220,7 +236,7 @@ class ReadAloudManager(
                 Log.w(TAG, "No se pudo publicar la sesión multimedia; se lee sin notificación", e)
             }
             observe(created, bookId)
-            repeat(skipSentences) { created.skipToNextUtterance() }
+            repeat(point?.skipSentences ?: 0) { created.skipToNextUtterance() }
             playRequested = true
             created.play()
             Log.i(TAG, "Lectura iniciada: libro $bookId" + if (skipSentences > 0) " (saltando $skipSentences frases)" else "")
@@ -244,7 +260,7 @@ class ReadAloudManager(
     /** Guarda la posición de la lectura sin esperar al muestreo periódico (al pausar o detener). */
     private fun saveProgressNow() {
         val bookId = _activeBookId.value ?: return
-        val locator = pendingLocator ?: return
+        val locator = _highlight.value ?: pendingLocator ?: return
         scope.launch { bookRepository.saveProgression(bookId, locator.toJSON().toString()) }
     }
 
@@ -342,7 +358,6 @@ class ReadAloudManager(
             launch {
                 nav.location.collect { location ->
                     pendingLocator = location.utteranceLocator
-                    lastUtterances[bookId] = location.utteranceLocator
                     _pageSync.tryEmit(location.utteranceLocator)
                     if (!hasStartedSpeaking) {
                         // Nada está sonando todavía (arranque, salto o cambio): el resaltado sigue
@@ -386,7 +401,11 @@ class ReadAloudManager(
 
     private fun applyPendingHighlight() {
         highlightFallback?.cancel()
-        pendingLocator?.let { _highlight.value = it }
+        pendingLocator?.let { locator ->
+            _highlight.value = locator
+            // La frase que suena es donde se retoma: Readium ya va una frase adelante por el aviso anticipado.
+            _activeBookId.value?.let { lastUtterances[it] = locator }
+        }
     }
 
     private fun updateWakeLock(active: Boolean) {
