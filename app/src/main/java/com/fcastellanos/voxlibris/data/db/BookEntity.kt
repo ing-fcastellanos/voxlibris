@@ -21,4 +21,18 @@ data class BookEntity(
     /** Locator de Readium serializado en JSON. Lo escribe el lector. */
     val progression: String? = null,
     @ColumnInfo(name = "last_opened_at") val lastOpenedAt: Long? = null,
+    /**
+     * Modo y voces propios del libro (nombre de `ReadingMode` e ids de voz). Los tres en null: el
+     * libro sigue los valores por defecto.
+     */
+    @ColumnInfo(name = "voice_mode") val voiceMode: String? = null,
+    @ColumnInfo(name = "narrator_voice_id") val narratorVoiceId: Int? = null,
+    @ColumnInfo(name = "dialogue_voice_id") val dialogueVoiceId: Int? = null,
+)
+
+/** Las columnas de voz de un libro, para observarlas sin el resto de la fila. */
+data class BookVoiceRow(
+    @ColumnInfo(name = "voice_mode") val voiceMode: String?,
+    @ColumnInfo(name = "narrator_voice_id") val narratorVoiceId: Int?,
+    @ColumnInfo(name = "dialogue_voice_id") val dialogueVoiceId: Int?,
 )

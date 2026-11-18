@@ -69,6 +69,20 @@
     <string name="tts_need_model_title">Descargar voces</string>
     <string name="tts_need_model_body">Para escuchar el libro hay que descargar las voces una sola vez (%1$d MB). ¿Descargar ahora?</string>
     <string name="sample_sentence">Hola, soy %1$s. Puedo leer tus libros en voz alta, sin conexión a internet.</string>
+    <string name="sample_dialogue">—¿Vamos? —preguntó Ana, y cerró el libro—. Se hace tarde.</string>
+    <string name="voice_mode">Modo de lectura</string>
+    <string name="voice_mode_single">Un lector</string>
+    <string name="voice_mode_dialogue">Narrador y diálogos</string>
+    <string name="voice_mode_dialogue_hint">Un lector narra y otro dice lo que hablan los personajes.</string>
+    <string name="voice_role">Qué voz estás eligiendo</string>
+    <string name="voice_role_narrator">Narra · %1$s</string>
+    <string name="voice_role_dialogue">Diálogos · %1$s</string>
+    <string name="voices_sample_dialogue">Muestra a dos voces</string>
+    <string name="voices_sample_dialogue_who">%1$s narra, %2$s hace los diálogos</string>
+    <string name="voices_listen_sample_dialogue">Escuchar la muestra a dos voces</string>
+    <string name="voices_book_custom">Este libro usa sus propios ajustes.</string>
+    <string name="voices_use_defaults">Usar los predeterminados</string>
+    <string name="voices_defaults_hint">Vale para todos los libros que no tengan sus propios ajustes.</string>
 
     <!-- Segundo plano -->
     <string name="sleep_timer">Temporizador de sueño</string>

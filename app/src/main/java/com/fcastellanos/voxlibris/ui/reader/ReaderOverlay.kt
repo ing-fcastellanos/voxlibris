@@ -158,7 +158,11 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
 
     val container = (LocalContext.current.applicationContext as VoxLibrisApp).container
     val sample = stringResource(R.string.sample_sentence)
-    val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample))
+    val dialogueSample = stringResource(R.string.sample_dialogue)
+    val voicesViewModel: VoicesViewModel = viewModel(
+        key = "voices-${viewModel.bookId}",
+        factory = VoicesViewModel.factory(container, sample, dialogueSample, viewModel.bookId),
+    )
 
     val paper = preferences.paper()
     val percent = locator?.locations?.totalProgression?.let { (it * 100).roundToInt().coerceIn(0, 100) }

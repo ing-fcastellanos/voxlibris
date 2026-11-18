@@ -25,11 +25,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -39,6 +43,8 @@ import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.services.content.Content
 import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.util.getOrElse
+import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
+import org.readium.r2.shared.util.tokenizer.TextUnit
 
 /**
  * Lectura en voz alta a nivel de aplicación: una sola sesión activa que sobrevive a la pantalla
@@ -100,7 +106,12 @@ class ReadAloudManager(
     val sleepTimerEndsAt: StateFlow<Long?> = _sleepTimerEndsAt.asStateFlow()
 
     val modelState: StateFlow<VoiceModelManager.State> = models.state
-    val preferences: StateFlow<SherpaTtsPreferences> = ttsPreferences.preferences
+    /** Preferencias con las que suena el libro activo (las suyas, si las tiene); sin libro activo, las de por defecto. */
+    private val _preferences = MutableStateFlow(ttsPreferences.preferences.value)
+    val preferences: StateFlow<SherpaTtsPreferences> = _preferences.asStateFlow()
+    /** Si cada libro marca los diálogos con rayas o con comillas; se averigua una vez por libro. */
+    private val dialogueStyles = mutableMapOf<Long, DialogueStyle>()
+    private var styleJob: Job? = null
 
     private var navigator: TtsNavigator<SherpaTtsSettings, SherpaTtsPreferences, SherpaTtsError, SherpaVoice>? = null
     private var retainedBookId: Long? = null
@@ -128,6 +139,9 @@ class ReadAloudManager(
             .apply { setReferenceCounted(false) }
 
     init {
+        scope.launch {
+            ttsPreferences.preferences.collect { if (navigator == null) _preferences.value = it }
+        }
         // Si se pidió escuchar sin voces instaladas, arrancamos solos cuando terminen de instalarse.
         scope.launch {
             models.state.collect { state ->
@@ -223,7 +237,12 @@ class ReadAloudManager(
         }
         _status.value = Status.Preparing
         startJob = scope.launch {
-            val factory = TtsNavigatorFactory(application, session.publication, provider)
+            // El tokenizador es el de frases de siempre; además anota quién dice cada frase.
+            val registry = provider.dialogue
+            registry.style = dialogueStyles[bookId] ?: DialogueStyle.DASHES
+            val factory = TtsNavigatorFactory(application, session.publication, provider, { language ->
+                DialogueTokenizer(DefaultTextContentTokenizer(TextUnit.Sentence, language), registry)
+            })
             if (factory == null) {
                 _status.value = Status.Error("El libro no expone texto legible")
                 return@launch
@@ -232,7 +251,7 @@ class ReadAloudManager(
             val created = factory.createNavigator(
                 listener = this@ReadAloudManager,
                 initialLocator = point?.locator,
-                initialPreferences = ttsPreferences.preferences.value,
+                initialPreferences = effectivePreferences(bookId).first(),
             ).getOrElse {
                 _status.value = Status.Error(it.message)
                 return@launch
@@ -250,6 +269,7 @@ class ReadAloudManager(
             }
             observe(created, bookId)
             ensureTextIndex(bookId, session.publication)
+            ensureDialogueStyle(bookId, session.publication)
             repeat(point?.skipSentences ?: 0) { created.skipToNextUtterance() }
             playRequested = true
             created.play()
@@ -324,6 +344,7 @@ class ReadAloudManager(
         startJob?.cancel()
         collectors?.cancel()
         indexJob?.cancel()
+        styleJob?.cancel()
         _remainingSeconds.value = null
         highlightFallback?.cancel()
         sleepJob?.cancel()
@@ -334,6 +355,7 @@ class ReadAloudManager(
             nav.close()
         }
         navigator = null
+        _preferences.value = ttsPreferences.preferences.value
         unbindService()
         if (wakeLock.isHeld) wakeLock.release()
         retainedBookId?.let { readerRepository.release(it) }
@@ -407,8 +429,9 @@ class ReadAloudManager(
                 }
             }
             launch {
-                ttsPreferences.preferences.collect { prefs ->
-                    Log.d(TAG, "Preferencias de voz: voz=${prefs.voiceId} velocidad=${prefs.speed} calidad=${prefs.quality}")
+                effectivePreferences(bookId).collect { prefs ->
+                    Log.d(TAG, "Preferencias de voz: modo=${prefs.mode} voz=${prefs.voiceId} diálogos=${prefs.dialogueVoiceId} velocidad=${prefs.speed} calidad=${prefs.quality}")
+                    _preferences.value = prefs
                     hasStartedSpeaking = false
                     if (_status.value == Status.Playing) _status.value = Status.Preparing
                     nav.submitPreferences(prefs)
@@ -416,6 +439,44 @@ class ReadAloudManager(
                 }
             }
         }
+    }
+
+    /** Valores por defecto con el modo y las voces propios del libro encima, si los tiene. */
+    private fun effectivePreferences(bookId: Long) =
+        combine(ttsPreferences.preferences, bookRepository.voiceChoice(bookId)) { defaults, own -> defaults.withVoiceChoice(own) }
+            .distinctUntilChanged()
+
+    /**
+     * Mira el comienzo del libro para saber si los diálogos van con rayas o con comillas. Mientras
+     * no se sabe, se asumen rayas: en un libro de comillas, lo primero se lee con una sola voz.
+     */
+    private fun ensureDialogueStyle(bookId: Long, publication: Publication) {
+        if (dialogueStyles.containsKey(bookId)) return
+        styleJob?.cancel()
+        styleJob = scope.launch {
+            val style = detectDialogueStyle(publication) ?: return@launch
+            dialogueStyles[bookId] = style
+            if (_activeBookId.value == bookId) provider.dialogue.style = style
+            Log.d(TAG, "Diálogos del libro $bookId: $style")
+        }
+    }
+
+    private suspend fun detectDialogueStyle(publication: Publication): DialogueStyle? = withContext(Dispatchers.Default) {
+        val iterator = runCatching { publication.content()?.iterator() }.getOrNull() ?: return@withContext null
+        var dashes = 0
+        var quoted = 0
+        var seen = 0
+        while (seen < STYLE_SAMPLE_PARAGRAPHS && dashes < STYLE_ENOUGH_DASHES && iterator.hasNext()) {
+            val text = (iterator.next() as? Content.TextElement)?.text ?: continue
+            if (text.length < 2) continue
+            seen++
+            when (DialogueParser.kindOf(text)) {
+                DialogueParser.Kind.DASH -> dashes++
+                DialogueParser.Kind.QUOTED -> quoted++
+                DialogueParser.Kind.PLAIN -> Unit
+            }
+        }
+        if (dashes == 0 && quoted >= STYLE_ENOUGH_QUOTES) DialogueStyle.QUOTES else DialogueStyle.DASHES
     }
 
     /** El índice de caracteres se arma una vez por libro, en segundo plano; mientras tanto no hay estimación. */
@@ -501,5 +562,8 @@ class ReadAloudManager(
         const val PROGRESS_SAVE_MS = 3000L
         private const val MAX_RESOLVE_ELEMENTS = 3000
         const val WAKE_LOCK_TIMEOUT_MS = 6 * 60 * 60 * 1000L
+        const val STYLE_SAMPLE_PARAGRAPHS = 600
+        const val STYLE_ENOUGH_DASHES = 5
+        const val STYLE_ENOUGH_QUOTES = 8
     }
 }

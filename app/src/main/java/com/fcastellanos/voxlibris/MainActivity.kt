@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
                     OnboardingScreen(viewModel = onboardingViewModel)
                 } else if (showVoices) {
                     val sample = stringResource(R.string.sample_sentence)
-                    val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample))
+                    val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample, stringResource(R.string.sample_dialogue)))
                     VoicesScreen(viewModel = voicesViewModel, onBack = { showVoices = false })
                 } else {
                     LibraryScreen(viewModel = viewModel, onOpenVoices = { showVoices = true })

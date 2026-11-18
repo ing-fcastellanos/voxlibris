@@ -45,6 +45,7 @@ import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 /**
  * Chip de una opción corta (`vx-chip`): velocidad, temporizador, calidad o interlineado.
  * El elegido se pinta con `fill-strong`. [onGround] es para chips sobre `ground` en lugar de `surface`.
+ * [leading] pone algo chico delante del texto, como el avatar de una voz.
  */
 @Composable
 fun VoxChip(
@@ -53,6 +54,7 @@ fun VoxChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onGround: Boolean = false,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val c = VoxLibrisTheme.colors
     val container = when {
@@ -66,10 +68,13 @@ fun VoxChip(
             .clip(RoundedCornerShape(VoxDimens.radiusPill))
             .background(container)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 14.dp),
+            .padding(start = if (leading != null) 4.dp else 14.dp, end = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = VoxLibrisTheme.typography.label, color = if (selected) c.onFillStrong else c.ink, maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            leading?.invoke()
+            Text(text, style = VoxLibrisTheme.typography.label, color = if (selected) c.onFillStrong else c.ink, maxLines = 1)
+        }
     }
 }
 

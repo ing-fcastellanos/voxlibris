@@ -29,6 +29,12 @@ object SherpaTtsDefaults {
     const val STEPS_HIGH = 8
     /** Por encima de este factor de tiempo real (medido con 8 pasos) se pasa a 4 pasos. */
     const val AUTO_RTF_THRESHOLD = 0.5
+
+    /** Voz de diálogos mientras nadie eligió una: la primera del género contrario al narrador, para que el cambio se note. */
+    fun dialogueVoiceFor(narratorVoiceId: Int): Int {
+        val narrator = SupertonicModel.voice(narratorVoiceId)
+        return SupertonicModel.VOICES.first { it.isFemale != narrator.isFemale }.id
+    }
 }
 
 @OptIn(ExperimentalReadiumApi::class)
@@ -37,6 +43,9 @@ data class SherpaTtsPreferences(
     val voiceId: Int? = null,
     val speed: Double? = null,
     val quality: SherpaTtsQuality? = null,
+    val mode: ReadingMode? = null,
+    /** Voz de los diálogos; solo se usa con [ReadingMode.NARRATOR_DIALOGUE]. [voiceId] es la del narrador. */
+    val dialogueVoiceId: Int? = null,
 ) : TtsEngine.Preferences<SherpaTtsPreferences> {
 
     override fun plus(other: SherpaTtsPreferences): SherpaTtsPreferences = SherpaTtsPreferences(
@@ -44,8 +53,24 @@ data class SherpaTtsPreferences(
         voiceId = other.voiceId ?: voiceId,
         speed = other.speed ?: speed,
         quality = other.quality ?: quality,
+        mode = other.mode ?: mode,
+        dialogueVoiceId = other.dialogueVoiceId ?: dialogueVoiceId,
     )
 }
+
+/** Modo y voces que resultan de estas preferencias, con la voz de diálogos ya resuelta. */
+fun SherpaTtsPreferences.voiceChoice(): VoiceChoice {
+    val narrator = voiceId ?: SherpaTtsDefaults.VOICE_ID
+    return VoiceChoice(
+        mode = mode ?: ReadingMode.SINGLE,
+        narratorVoiceId = narrator,
+        dialogueVoiceId = dialogueVoiceId ?: SherpaTtsDefaults.dialogueVoiceFor(narrator),
+    )
+}
+
+/** Estas preferencias con el modo y las voces propios de un libro; `null` deja los valores por defecto. */
+fun SherpaTtsPreferences.withVoiceChoice(choice: VoiceChoice?): SherpaTtsPreferences =
+    if (choice == null) this else copy(mode = choice.mode, voiceId = choice.narratorVoiceId, dialogueVoiceId = choice.dialogueVoiceId)
 
 @OptIn(ExperimentalReadiumApi::class)
 data class SherpaTtsSettings(
@@ -54,6 +79,8 @@ data class SherpaTtsSettings(
     val voiceId: Int,
     val speed: Double,
     val quality: SherpaTtsQuality,
+    /** Voz de los diálogos, o `null` si un solo lector lee todo. */
+    val dialogueVoiceId: Int? = null,
 ) : TtsEngine.Settings
 
 fun SherpaTtsPreferences.resolve(contentLanguage: Language?): SherpaTtsSettings = SherpaTtsSettings(
@@ -62,6 +89,7 @@ fun SherpaTtsPreferences.resolve(contentLanguage: Language?): SherpaTtsSettings 
     voiceId = voiceId ?: SherpaTtsDefaults.VOICE_ID,
     speed = (speed ?: SherpaTtsDefaults.SPEED).coerceIn(SherpaTtsDefaults.SPEED_RANGE),
     quality = quality ?: SherpaTtsQuality.AUTO,
+    dialogueVoiceId = voiceChoice().takeIf { it.mode == ReadingMode.NARRATOR_DIALOGUE }?.dialogueVoiceId,
 )
 
 /** Editor mínimo: Readium solo exige `preferences` y `clear()`; la interfaz usa los setters. */

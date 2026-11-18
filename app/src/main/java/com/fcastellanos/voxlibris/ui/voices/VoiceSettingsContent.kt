@@ -22,7 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,10 +33,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fcastellanos.voxlibris.R
+import com.fcastellanos.voxlibris.tts.ReadingMode
 import com.fcastellanos.voxlibris.tts.SherpaTtsDefaults
 import com.fcastellanos.voxlibris.tts.SherpaTtsQuality
 import com.fcastellanos.voxlibris.tts.SherpaVoice
@@ -53,6 +58,7 @@ import com.fcastellanos.voxlibris.ui.components.VoxButtonVariant
 import com.fcastellanos.voxlibris.ui.components.VoxChip
 import com.fcastellanos.voxlibris.ui.components.VoxChipGroup
 import com.fcastellanos.voxlibris.ui.components.VoxSlider
+import com.fcastellanos.voxlibris.ui.components.VoxTabs
 import com.fcastellanos.voxlibris.ui.components.colors
 import com.fcastellanos.voxlibris.ui.components.formatSpeed
 import com.fcastellanos.voxlibris.ui.components.voiceTint
@@ -61,9 +67,11 @@ import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 import kotlin.math.roundToInt
 
 /**
- * Elección del lector (pantalla «Elegir voz» del lienzo): el paquete de voces, las diez voces en dos
- * filas de colores, una muestra, la velocidad y la calidad. Se muestra como pantalla desde la
- * biblioteca ([onGround] verdadero, sobre `ground`) y como hoja inferior desde el lector.
+ * Elección del lector (pantallas «Elegir voz» y «Voz predeterminada» del lienzo): el paquete de voces,
+ * el modo de lectura, las diez voces en dos filas de colores, una muestra, la velocidad y la calidad.
+ * Con «Narrador y diálogos», dos chips dicen qué voz se está eligiendo. Se muestra como pantalla desde
+ * la biblioteca ([onGround] verdadero, sobre `ground`), donde edita los valores por defecto, y como hoja
+ * inferior desde el lector, donde edita los del libro abierto.
  */
 @Composable
 fun VoiceSettingsContent(
@@ -74,6 +82,13 @@ fun VoiceSettingsContent(
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val previewing by viewModel.previewing.collectAsStateWithLifecycle()
+    val voice by viewModel.voice.collectAsStateWithLifecycle()
+    val customized by viewModel.customized.collectAsStateWithLifecycle()
+    val twoVoices = voice.mode == ReadingMode.NARRATOR_DIALOGUE
+    var pickingDialogue by rememberSaveable { mutableStateOf(false) }
+    val forDialogue = twoVoices && pickingDialogue
+    val narrator = SupertonicModel.voice(voice.narratorVoiceId)
+    val dialogue = SupertonicModel.voice(voice.dialogueVoiceId)
     val ready = modelState is VoiceModelManager.State.Ready
     val c = VoxLibrisTheme.colors
     val t = VoxLibrisTheme.typography
@@ -88,25 +103,87 @@ fun VoiceSettingsContent(
             )
         }
 
+        Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
+            val modeLabel = stringResource(R.string.voice_mode)
+            VoxTabs(
+                tabs = listOf(stringResource(R.string.voice_mode_single), stringResource(R.string.voice_mode_dialogue)),
+                selectedIndex = if (twoVoices) 1 else 0,
+                onSelect = { viewModel.setMode(if (it == 1) ReadingMode.NARRATOR_DIALOGUE else ReadingMode.SINGLE) },
+                modifier = Modifier.semantics { contentDescription = modeLabel },
+            )
+            if (twoVoices) {
+                Text(stringResource(R.string.voice_mode_dialogue_hint), style = t.caption, color = c.inkMuted)
+            }
+        }
+
+        if (twoVoices) {
+            val roleLabel = stringResource(R.string.voice_role)
+            VoxChipGroup(Modifier.semantics { contentDescription = roleLabel }) {
+                VoxChip(
+                    stringResource(R.string.voice_role_narrator, narrator.name),
+                    selected = !pickingDialogue,
+                    onClick = { pickingDialogue = false },
+                    onGround = onGround,
+                    leading = { VoiceAvatar(narrator.name.take(1), voiceTint(narrator.id), size = 32.dp) },
+                )
+                VoxChip(
+                    stringResource(R.string.voice_role_dialogue, dialogue.name),
+                    selected = pickingDialogue,
+                    onClick = { pickingDialogue = true },
+                    onGround = onGround,
+                    leading = { VoiceAvatar(dialogue.name.take(1), voiceTint(dialogue.id), size = 32.dp) },
+                )
+            }
+        }
+
         Column(
             Modifier.alpha(if (ready) 1f else 0.4f),
             verticalArrangement = Arrangement.spacedBy(VoxDimens.space3),
         ) {
             val (female, male) = viewModel.voices.partition { it.isFemale }
+            val selectedId = if (forDialogue) dialogue.id else narrator.id
+            val onSelect = { id: Int -> viewModel.selectVoice(id, forDialogue) }
             SectionLabel(stringResource(R.string.voices_female_group))
-            VoiceRow(female, settings.voiceId, ready, viewModel::selectVoice)
+            VoiceRow(female, selectedId, ready, onSelect)
             SectionLabel(stringResource(R.string.voices_male_group))
-            VoiceRow(male, settings.voiceId, ready, viewModel::selectVoice)
+            VoiceRow(male, selectedId, ready, onSelect)
         }
 
-        val selected = SupertonicModel.voice(settings.voiceId)
-        SampleRow(
-            voice = selected,
-            onGround = onGround,
-            previewing = previewing == selected.id,
-            enabled = ready && previewing == null,
-            onPreview = { viewModel.preview(selected) },
-        )
+        if (twoVoices) {
+            SampleRow(
+                title = stringResource(R.string.voices_sample_dialogue),
+                subtitle = stringResource(R.string.voices_sample_dialogue_who, narrator.name, dialogue.name),
+                playLabel = stringResource(R.string.voices_listen_sample_dialogue),
+                tintVoice = if (forDialogue) dialogue else narrator,
+                onGround = onGround,
+                previewing = previewing == VoicesViewModel.DIALOGUE_SAMPLE_ID,
+                enabled = ready && previewing == null,
+                onPreview = viewModel::previewDialogue,
+            )
+        } else {
+            SampleRow(
+                title = stringResource(R.string.voices_sample_of, narrator.name),
+                subtitle = stringResource(if (narrator.isFemale) R.string.voice_female else R.string.voice_male),
+                playLabel = stringResource(R.string.voices_listen_sample, narrator.name),
+                tintVoice = narrator,
+                onGround = onGround,
+                previewing = previewing == narrator.id,
+                enabled = ready && previewing == null,
+                onPreview = { viewModel.preview(narrator) },
+            )
+        }
+
+        if (viewModel.forBook && customized) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VoxDimens.space3)) {
+                Text(stringResource(R.string.voices_book_custom), style = t.caption, color = c.inkMuted, modifier = Modifier.weight(1f))
+                VoxButton(
+                    stringResource(R.string.voices_use_defaults),
+                    onClick = viewModel::useDefaults,
+                    variant = VoxButtonVariant.Ghost,
+                    size = VoxButtonSize.Small,
+                )
+            }
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
             // Se aplica al soltar: cada cambio reinicia la frase en curso en el lector.
@@ -194,11 +271,20 @@ private fun VoiceRow(voices: List<SherpaVoice>, selectedId: Int, enabled: Boolea
     }
 }
 
-/** Muestra del lector elegido, con su color. */
+/** Muestra del lector elegido (o de los dos, con narrador y diálogos), con el color de [tintVoice]. */
 @Composable
-private fun SampleRow(voice: SherpaVoice, onGround: Boolean, previewing: Boolean, enabled: Boolean, onPreview: () -> Unit) {
+private fun SampleRow(
+    title: String,
+    subtitle: String,
+    playLabel: String,
+    tintVoice: SherpaVoice,
+    onGround: Boolean,
+    previewing: Boolean,
+    enabled: Boolean,
+    onPreview: () -> Unit,
+) {
     val c = VoxLibrisTheme.colors
-    val tint = voiceTint(voice.id).colors
+    val tint = voiceTint(tintVoice.id).colors
     Row(
         Modifier
             .fillMaxWidth()
@@ -216,7 +302,7 @@ private fun SampleRow(voice: SherpaVoice, onGround: Boolean, previewing: Boolean
             PlayButton(
                 playing = false,
                 onClick = if (enabled) onPreview else null,
-                contentDescription = stringResource(R.string.voices_listen_sample, voice.name),
+                contentDescription = playLabel,
                 size = PlayButtonSize.Small,
                 containerColor = tint.container,
                 contentColor = tint.content,
@@ -224,12 +310,8 @@ private fun SampleRow(voice: SherpaVoice, onGround: Boolean, previewing: Boolean
             )
         }
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.voices_sample_of, voice.name), style = VoxLibrisTheme.typography.label, color = c.ink)
-            Text(
-                stringResource(if (voice.isFemale) R.string.voice_female else R.string.voice_male),
-                style = VoxLibrisTheme.typography.caption,
-                color = c.inkMuted,
-            )
+            Text(title, style = VoxLibrisTheme.typography.label, color = c.ink)
+            Text(subtitle, style = VoxLibrisTheme.typography.caption, color = c.inkMuted)
         }
     }
 }

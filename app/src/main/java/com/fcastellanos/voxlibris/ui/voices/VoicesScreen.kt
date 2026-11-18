@@ -20,7 +20,10 @@ import com.fcastellanos.voxlibris.ui.components.VoxIconButton
 import com.fcastellanos.voxlibris.ui.theme.VoxDimens
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 
-/** Lectores, desde la barra de la biblioteca: la misma elección de voz que en el lector, a pantalla completa. */
+/**
+ * Lectores, desde la barra de la biblioteca: la elección de modo y voces por defecto, a pantalla
+ * completa. Es la «Voz predeterminada» del lienzo hasta que exista la pantalla de Ajustes.
+ */
 @Composable
 fun VoicesScreen(viewModel: VoicesViewModel, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
@@ -43,6 +46,11 @@ fun VoicesScreen(viewModel: VoicesViewModel, onBack: () -> Unit) {
                 modifier = Modifier.semantics { heading() },
             )
             Tag(stringResource(R.string.voices_tag))
+            Text(
+                stringResource(R.string.voices_defaults_hint),
+                style = VoxLibrisTheme.typography.body,
+                color = c.inkMuted,
+            )
         }
         VoiceSettingsContent(
             viewModel = viewModel,

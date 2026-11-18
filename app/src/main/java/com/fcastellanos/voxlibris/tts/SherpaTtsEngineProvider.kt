@@ -23,6 +23,9 @@ class SherpaTtsEngineProvider(
     private val _events = MutableSharedFlow<SherpaTtsEngine.Event>(extraBufferCapacity = 32)
     val events: SharedFlow<SherpaTtsEngine.Event> = _events.asSharedFlow()
 
+    /** Quién dice cada frase; lo llena el tokenizador del navegador ([DialogueTokenizer]). */
+    val dialogue = DialogueRegistry()
+
     @Volatile
     var activeEngine: SherpaTtsEngine? = null
         private set
@@ -33,7 +36,7 @@ class SherpaTtsEngineProvider(
     ): Try<TtsEngine<SherpaTtsSettings, SherpaTtsPreferences, SherpaTtsError, SherpaVoice>, Error> {
         val tts = runtime.acquire() ?: return Try.failure(SherpaTtsError.ModelMissing)
         val rtf = runCatching { runtime.calibratedRtf(tts) }.getOrNull()
-        val engine = SherpaTtsEngine(runtime, tts, contentLanguage(publication), initialPreferences, rtf, _events)
+        val engine = SherpaTtsEngine(runtime, tts, contentLanguage(publication), initialPreferences, rtf, _events, dialogue)
         activeEngine = engine
         return Try.success(engine)
     }

@@ -5,7 +5,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Preferencias de voz persistidas (lector elegido, velocidad, calidad) y la calibración del teléfono. */
+/**
+ * Preferencias de voz persistidas y la calibración del teléfono. El modo y las voces son los valores por
+ * defecto: valen para todo libro sin ajustes propios (esos se guardan con el libro). Velocidad y
+ * calidad son generales.
+ */
 class TtsPreferencesStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("tts_preferences", Context.MODE_PRIVATE)
@@ -26,6 +30,8 @@ class TtsPreferencesStore(context: Context) {
             preferences.voiceId?.let { putInt(KEY_VOICE, it) } ?: remove(KEY_VOICE)
             preferences.speed?.let { putFloat(KEY_SPEED, it.toFloat()) } ?: remove(KEY_SPEED)
             preferences.quality?.let { putString(KEY_QUALITY, it.name) } ?: remove(KEY_QUALITY)
+            preferences.mode?.let { putString(KEY_MODE, it.name) } ?: remove(KEY_MODE)
+            preferences.dialogueVoiceId?.let { putInt(KEY_DIALOGUE_VOICE, it) } ?: remove(KEY_DIALOGUE_VOICE)
         }.apply()
     }
 
@@ -33,12 +39,16 @@ class TtsPreferencesStore(context: Context) {
         voiceId = if (prefs.contains(KEY_VOICE)) prefs.getInt(KEY_VOICE, SherpaTtsDefaults.VOICE_ID) else null,
         speed = if (prefs.contains(KEY_SPEED)) prefs.getFloat(KEY_SPEED, 1f).toDouble() else null,
         quality = prefs.getString(KEY_QUALITY, null)?.let { runCatching { SherpaTtsQuality.valueOf(it) }.getOrNull() },
+        mode = prefs.getString(KEY_MODE, null)?.let { runCatching { ReadingMode.valueOf(it) }.getOrNull() },
+        dialogueVoiceId = if (prefs.contains(KEY_DIALOGUE_VOICE)) prefs.getInt(KEY_DIALOGUE_VOICE, 0) else null,
     )
 
     private companion object {
         const val KEY_VOICE = "voice_id"
         const val KEY_SPEED = "speed"
         const val KEY_QUALITY = "quality"
+        const val KEY_MODE = "mode"
+        const val KEY_DIALOGUE_VOICE = "dialogue_voice_id"
         const val KEY_RTF = "calibrated_rtf"
     }
 }

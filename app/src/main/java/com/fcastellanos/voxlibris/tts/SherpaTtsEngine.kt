@@ -33,6 +33,9 @@ import org.readium.r2.shared.util.Language
  * a continuación en el mismo hilo y suena sin corte. `onStart` sí se emite cuando la frase empieza
  * a sonar de verdad, para que el resaltado sea fiel.
  *
+ * Con una voz para los diálogos ([SherpaTtsSettings.dialogueVoiceId]), la frase se corta además donde
+ * cambia quien habla y cada trozo se sintetiza con su voz; [dialogue] dice qué parte es de quién.
+ *
  * La velocidad por encima de [SherpaTtsDefaults.MAX_SYNTH_SPEED] no se pide al modelo (se come
  * sílabas): se sintetiza al tope y el AudioTrack estira el audio conservando el tono.
  */
@@ -44,6 +47,7 @@ class SherpaTtsEngine(
     initialPreferences: SherpaTtsPreferences,
     private val calibratedRtf: Double?,
     private val events: MutableSharedFlow<Event>,
+    private val dialogue: DialogueRegistry,
 ) : TtsEngine<SherpaTtsSettings, SherpaTtsPreferences, SherpaTtsError, SherpaVoice> {
 
     sealed interface Event {
@@ -55,6 +59,8 @@ class SherpaTtsEngine(
         val id: TtsEngine.RequestId,
         val text: String,
         val pieces: List<TtsMath.Piece>,
+        /** Voz de cada trozo, en el mismo orden que [pieces]. */
+        val voices: IntArray,
         val playbackRate: Float,
     ) {
         @Volatile var cancelled = false
@@ -106,8 +112,15 @@ class SherpaTtsEngine(
         val settings = settingsFlow.value
         val synthSpeed = minOf(settings.speed, SherpaTtsDefaults.MAX_SYNTH_SPEED)
         val playbackRate = (settings.speed / synthSpeed).toFloat()
-        val pieces = TtsMath.splitForSynthesis(text)
-        val request = Request(requestId, text, pieces, playbackRate)
+        val voiced = settings.dialogueVoiceId?.let { dialogueVoice ->
+            val spans = dialogue.spansFor(text)
+            // Sin diálogo en la frase no hace falta cortarla distinto: la lee el narrador, como siempre.
+            if (spans.none { it.dialogue }) null
+            else DialogueParser.splitVoiced(text, spans).map { it.piece to (if (it.dialogue) dialogueVoice else settings.voiceId) }
+        }
+        val pieces = voiced?.map { it.first } ?: TtsMath.splitForSynthesis(text)
+        val voices = IntArray(pieces.size) { voiced?.get(it)?.second ?: settings.voiceId }
+        val request = Request(requestId, text, pieces, voices, playbackRate)
         current = request
         if (pieces.isEmpty()) {
             listener?.onDone(requestId)
@@ -123,7 +136,7 @@ class SherpaTtsEngine(
                     return@execute
                 }
                 val audio = try {
-                    synthesize(piece.text, language, settings, synthSpeed)
+                    synthesize(piece.text, language, settings, synthSpeed, voices[index])
                 } catch (e: Throwable) {
                     Log.w(TAG, "Falló la síntesis de la frase ${requestId.value.take(8)}", e)
                     if (!request.cancelled) {
@@ -146,7 +159,10 @@ class SherpaTtsEngine(
                 var samples = audio.first
                 val sampleRate = audio.second
                 if (index > 0) samples = TtsMath.trimLeadingSilence(samples, sampleRate, keepMs = LEADING_KEEP_MS)
-                if (!isLast) samples = TtsMath.trimTrailingSilence(samples, sampleRate, keepMs = JOIN_KEEP_MS)
+                if (!isLast) {
+                    val voiceChanges = voices[index + 1] != voices[index]
+                    samples = TtsMath.trimTrailingSilence(samples, sampleRate, keepMs = if (voiceChanges) VOICE_CHANGE_KEEP_MS else JOIN_KEEP_MS)
+                }
                 if (pieces.size > 1) samples = TtsMath.fadeEdges(samples, sampleRate, fadeInMs = if (index > 0) EDGE_FADE_MS else 0, fadeOutMs = if (!isLast) EDGE_FADE_MS else 0)
                 request.samplesPending.addAndGet(samples.size.toLong())
                 val task = Runnable { playPiece(request, piece, index, samples, sampleRate, isLast) }
@@ -206,7 +222,7 @@ class SherpaTtsEngine(
         synthExecutor.shutdown()
     }
 
-    private fun synthesize(text: String, language: Language?, settings: SherpaTtsSettings, synthSpeed: Double): Pair<FloatArray, Int>? {
+    private fun synthesize(text: String, language: Language?, settings: SherpaTtsSettings, synthSpeed: Double, voiceId: Int): Pair<FloatArray, Int>? {
         val clean = text.trim()
         if (clean.isEmpty()) return null
         val languageCode = when {
@@ -215,7 +231,7 @@ class SherpaTtsEngine(
         } ?: "es"
         val steps = TtsMath.numSteps(settings.quality, calibratedRtf)
         val start = SystemClock.elapsedRealtime()
-        val generated = runtime.synthesize(tts, clean, settings.voiceId, synthSpeed, steps, languageCode)
+        val generated = runtime.synthesize(tts, clean, voiceId, synthSpeed, steps, languageCode)
         val samples = TtsMath.trimTrailingSilence(generated.samples, generated.sampleRate)
         val synthSeconds = (SystemClock.elapsedRealtime() - start) / 1000.0
         val audioSeconds = samples.size.toDouble() / generated.sampleRate
@@ -224,7 +240,7 @@ class SherpaTtsEngine(
             secondsPerChar = secondsPerChar * 0.7 + (audioSeconds / clean.length) * 0.3
             SpeechRate.record(clean.length, audioSeconds, synthSpeed)
         }
-        Log.d(TAG, "Trozo sintetizado: %.2f s de audio en %.2f s (RTF=%.2f, pasos=%d, voz=%d, lang=%s, %d chars, lead=%.1f s)".format(audioSeconds, synthSeconds, if (audioSeconds > 0) synthSeconds / audioSeconds else 0.0, steps, settings.voiceId, languageCode, clean.length, TtsMath.leadSeconds(rtf.value)))
+        Log.d(TAG, "Trozo sintetizado: %.2f s de audio en %.2f s (RTF=%.2f, pasos=%d, voz=%d, lang=%s, %d chars, lead=%.1f s)".format(audioSeconds, synthSeconds, if (audioSeconds > 0) synthSeconds / audioSeconds else 0.0, steps, voiceId, languageCode, clean.length, TtsMath.leadSeconds(rtf.value)))
         return samples to generated.sampleRate
     }
 
@@ -418,6 +434,8 @@ class SherpaTtsEngine(
         const val HOLD_FIRST_PIECE_UNDER_SECONDS = 1.5
         /** Silencio que se conserva en la unión entre trozos (una coma natural dura unos 150 ms). */
         const val JOIN_KEEP_MS = 60
+        /** Al cambiar de voz dentro de la frase se deja una pausa un poco mayor, como la que haría un lector. */
+        const val VOICE_CHANGE_KEEP_MS = 140
         const val LEADING_KEEP_MS = 10
         const val EDGE_FADE_MS = 5
     }
