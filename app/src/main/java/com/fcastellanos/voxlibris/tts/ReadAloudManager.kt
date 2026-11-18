@@ -34,6 +34,10 @@ import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.content.Content
+import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.util.getOrElse
 
 /**
@@ -101,6 +105,8 @@ class ReadAloudManager(
     private var sleepJob: Job? = null
     private var highlightFallback: Job? = null
     private var pendingLocator: Locator? = null
+    /** Última frase leída de cada libro; sobrevive a stop() para retomar donde se dejó. */
+    private val lastUtterances = mutableMapOf<Long, Locator>()
     private var hasStartedSpeaking = false
     /** True desde que se pidió reproducir: antes de eso, "sin reproducir" significa "preparando", no "en pausa". */
     private var playRequested = false
@@ -129,6 +135,31 @@ class ReadAloudManager(
 
     fun isActiveFor(bookId: Long): Boolean = _activeBookId.value == bookId
 
+    fun lastUtteranceFor(bookId: Long): Locator? = lastUtterances[bookId]
+
+    /**
+     * El navegador de voz solo sabe ubicarse por `cssSelector`; con una posición de página (solo
+     * `progression`) arrancaría desde el inicio del capítulo. Para esas, se busca el primer elemento
+     * de texto del recurso cuya progresión alcanza la de la página.
+     */
+    private suspend fun resolveStart(publication: Publication, from: Locator?): Locator? {
+        if (from == null || from.locations.cssSelector != null) return from
+        val target = from.locations.progression ?: return from
+        if (target <= 0.0) return from
+        val iterator = publication.content(from)?.iterator() ?: return from
+        var seen = 0
+        while (seen++ < MAX_RESOLVE_ELEMENTS && iterator.hasNext()) {
+            val element = iterator.next() as? Content.TextElement ?: continue
+            if (element.locator.href != from.href) break
+            val progression = element.locator.locations.progression ?: continue
+            if (progression >= target) {
+                Log.d(TAG, "Posición de página resuelta a un elemento (progresión ${"%.3f".format(progression)} ≥ ${"%.3f".format(target)})")
+                return element.locator
+            }
+        }
+        return from
+    }
+
     /** Empieza a leer `bookId` desde `from`. Si otro libro estaba sonando, lo detiene antes. */
     fun start(bookId: Long, from: Locator?, skipSentences: Int = 0) {
         if (_activeBookId.value == bookId && navigator != null) {
@@ -136,10 +167,16 @@ class ReadAloudManager(
                 Log.d(TAG, "Mover la lectura a un punto elegido (saltar $skipSentences frases)")
                 hasStartedSpeaking = false
                 if (_status.value == Status.Playing) _status.value = Status.Preparing
-                navigator?.go(from)
-                repeat(skipSentences) { navigator?.skipToNextUtterance() }
+                val publication = readerRepository[bookId]?.publication
+                scope.launch {
+                    val target = publication?.let { resolveStart(it, from) } ?: from
+                    navigator?.go(target)
+                    repeat(skipSentences) { navigator?.skipToNextUtterance() }
+                    play()
+                }
+            } else {
+                play()
             }
-            play()
             return
         }
         if (_activeBookId.value != null && _activeBookId.value != bookId) stop()
@@ -165,7 +202,7 @@ class ReadAloudManager(
             }
             val created = factory.createNavigator(
                 listener = this@ReadAloudManager,
-                initialLocator = from,
+                initialLocator = resolveStart(session.publication, from),
                 initialPreferences = ttsPreferences.preferences.value,
             ).getOrElse {
                 _status.value = Status.Error(it.message)
@@ -305,6 +342,7 @@ class ReadAloudManager(
             launch {
                 nav.location.collect { location ->
                     pendingLocator = location.utteranceLocator
+                    lastUtterances[bookId] = location.utteranceLocator
                     _pageSync.tryEmit(location.utteranceLocator)
                     if (!hasStartedSpeaking) {
                         // Nada está sonando todavía (arranque, salto o cambio): el resaltado sigue
@@ -398,6 +436,7 @@ class ReadAloudManager(
         /** Mayor que el adelanto máximo con que el motor pide la frase siguiente (TtsMath.leadSeconds). */
         const val HIGHLIGHT_FALLBACK_MS = 6500L
         const val PROGRESS_SAVE_MS = 3000L
+        private const val MAX_RESOLVE_ELEMENTS = 3000
         const val WAKE_LOCK_TIMEOUT_MS = 6 * 60 * 60 * 1000L
     }
 }

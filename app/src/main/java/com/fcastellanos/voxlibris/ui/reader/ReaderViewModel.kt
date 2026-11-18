@@ -239,6 +239,7 @@ class ReaderViewModel(
 
     init {
         followReadAloudWhileAway()
+        rememberPageWhenVoiceStops()
         session?.let { s ->
             viewModelScope.launch {
                 _positions.value = runCatching { s.publication.positions() }.getOrDefault(emptyList())
@@ -250,9 +251,31 @@ class ReaderViewModel(
         _overlayVisible.value = !_overlayVisible.value
     }
 
-    /** Empieza a leer en voz alta desde la posición actual del lector. */
+    /** Página en la que quedó el lector cuando la voz se detuvo, para saber si el usuario se movió después. */
+    private var pageAtStop: Locator? = null
+
+    /**
+     * Empieza a leer en voz alta. Si la voz se detuvo en este libro y la página no se movió desde
+     * entonces, retoma en la última frase leída; si no, arranca desde la página actual.
+     */
     fun listen() {
-        readAloud.start(bookId, _currentLocator.value)
+        val page = _currentLocator.value
+        val resumeAt = readAloud.lastUtteranceFor(bookId)?.takeIf { page != null && page.samePageAs(pageAtStop) }
+        readAloud.start(bookId, resumeAt ?: page)
+    }
+
+    private fun Locator.samePageAs(other: Locator?): Boolean =
+        other != null && href == other.href && locations.progression == other.locations.progression
+
+    private fun rememberPageWhenVoiceStops() {
+        viewModelScope.launch {
+            var wasActive = readAloud.isActiveFor(bookId)
+            readAloud.activeBookId.collect { active ->
+                val isActive = active == bookId
+                if (wasActive && !isActive) pageAtStop = _currentLocator.value
+                wasActive = isActive
+            }
+        }
     }
 
     /** Punto de arranque para la voz: el párrafo que contiene la selección y cuántas frases suyas saltar. */
