@@ -15,6 +15,7 @@
     <string name="onboarding_voices_downloading">Descargando las voces…</string>
     <string name="onboarding_voices_downloading_detail">%1$d MB de %2$d MB</string>
     <string name="onboarding_voices_installing">Instalando las voces…</string>
+    <string name="onboarding_voices_installing_detail">%1$d %%</string>
     <string name="onboarding_voices_done">Listo: voces instaladas</string>
     <string name="onboarding_voices_failed">No se pudieron descargar las voces: %1$s</string>
     <string name="onboarding_voices_retry">Reintentar</string>
