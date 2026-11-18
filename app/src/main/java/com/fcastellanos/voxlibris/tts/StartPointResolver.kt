@@ -1,5 +1,6 @@
 package com.fcastellanos.voxlibris.tts
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.readium.r2.shared.publication.Locator
@@ -37,10 +38,14 @@ object StartPointResolver {
                 val segmentText = segment.text.collapseSpaces()
                 // Primero la frase entera (exacta); si no está, su comienzo, que alcanza para una selección.
                 val index = segmentText.indexOf(full).takeIf { it >= 0 } ?: segmentText.indexOf(short)
-                if (index < 0) continue
+                if (index < 0) {
+                    if (visited == 1) Log.d(TAG, "Frase no hallada en el primer elemento: «${short}» vs «${segmentText.take(60)}»")
+                    continue
+                }
                 val skip = tokenizer.tokenize(segmentText).count { range ->
                     range.last < index && segmentText.substring(range).isNotBlank()
                 }
+                Log.d(TAG, "Frase hallada en el elemento $visited, índice $index, saltar $skip: «${short}»")
                 return@withContext StartPoint(segment.locator, skip)
             }
         }
@@ -52,5 +57,6 @@ object StartPointResolver {
     private fun String.collapseSpaces(): String = replace(WHITESPACE, " ").trim()
 
     private const val NEEDLE_CHARS = 24
+    private const val TAG = "VoxLibris.TTS"
     private const val MAX_ELEMENTS_TO_SCAN = 400
 }

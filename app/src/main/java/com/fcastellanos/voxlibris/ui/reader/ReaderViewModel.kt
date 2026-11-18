@@ -1,5 +1,6 @@
 package com.fcastellanos.voxlibris.ui.reader
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -255,6 +256,11 @@ class ReaderViewModel(
     fun listen() {
         val page = _currentLocator.value
         val resumeAt = readAloud.lastUtteranceFor(bookId)?.takeIf { page != null && page.samePageAs(pageAtStop) }
+        Log.d(
+            TAG,
+            if (resumeAt != null) "Escuchar: retoma en la frase recordada «${resumeAt.text.highlight.orEmpty().take(40)}»"
+            else "Escuchar: desde la página (p=${page?.locations?.progression}, recordada=${readAloud.lastUtteranceFor(bookId) != null}, misma página=${page?.samePageAs(pageAtStop)})",
+        )
         readAloud.start(bookId, resumeAt ?: page)
     }
 
@@ -341,6 +347,7 @@ class ReaderViewModel(
 
     companion object {
         const val HIGHLIGHTS_GROUP = "highlights"
+        private const val TAG = "VoxLibris.TTS"
         private const val HIGHLIGHT_DECORATION_PREFIX = "highlight-"
         private val HIGHLIGHT_DECORATION_ID = Regex("^$HIGHLIGHT_DECORATION_PREFIX(\\d+)")
         private const val SAVE_DEBOUNCE_MS = 600L

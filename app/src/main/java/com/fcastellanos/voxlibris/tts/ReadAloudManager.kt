@@ -168,11 +168,18 @@ class ReadAloudManager(
     private suspend fun resolveStartPoint(publication: Publication, from: Locator?, skipSentences: Int): StartPointResolver.StartPoint? {
         val resolved = resolveStart(publication, from) ?: return null
         val text = from?.text?.highlight?.takeIf { skipSentences == 0 && it.isNotBlank() && resolved.locations.cssSelector != null }
-            ?: return StartPointResolver.StartPoint(resolved, skipSentences)
+        if (text == null) {
+            Log.d(TAG, "Punto de arranque: ${describe(resolved)}, saltar $skipSentences")
+            return StartPointResolver.StartPoint(resolved, skipSentences)
+        }
         return StartPointResolver.resolve(publication, resolved, text).also {
-            if (it.skipSentences > 0) Log.d(TAG, "Arranque en la frase ${it.skipSentences + 1} del párrafo")
+            Log.d(TAG, "Punto de arranque por frase: ${describe(it.locator)}, saltar ${it.skipSentences} (frase «${text.take(40)}»)")
         }
     }
+
+    private fun describe(locator: Locator): String =
+        "${locator.href.toString().substringAfterLast('/')} ${locator.locations.cssSelector ?: "sin selector"} " +
+            "p=${locator.locations.progression?.let { "%.3f".format(it) } ?: "-"}"
 
     /** Empieza a leer `bookId` desde `from`. Si otro libro estaba sonando, lo detiene antes. */
     fun start(bookId: Long, from: Locator?, skipSentences: Int = 0) {
@@ -261,6 +268,7 @@ class ReadAloudManager(
     private fun saveProgressNow() {
         val bookId = _activeBookId.value ?: return
         val locator = _highlight.value ?: pendingLocator ?: return
+        Log.d(TAG, "Posición guardada: ${describe(locator)} «${locator.text.highlight.orEmpty().take(40)}»")
         scope.launch { bookRepository.saveProgression(bookId, locator.toJSON().toString()) }
     }
 
