@@ -222,6 +222,7 @@ class SherpaTtsEngine(
         rtf.update(synthSeconds, audioSeconds)
         if (clean.length >= 20 && audioSeconds > 0.2) {
             secondsPerChar = secondsPerChar * 0.7 + (audioSeconds / clean.length) * 0.3
+            SpeechRate.record(clean.length, audioSeconds, synthSpeed)
         }
         Log.d(TAG, "Trozo sintetizado: %.2f s de audio en %.2f s (RTF=%.2f, pasos=%d, voz=%d, lang=%s, %d chars, lead=%.1f s)".format(audioSeconds, synthSeconds, if (audioSeconds > 0) synthSeconds / audioSeconds else 0.0, steps, settings.voiceId, languageCode, clean.length, TtsMath.leadSeconds(rtf.value)))
         return samples to generated.sampleRate

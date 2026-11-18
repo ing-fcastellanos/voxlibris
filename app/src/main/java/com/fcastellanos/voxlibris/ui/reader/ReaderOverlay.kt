@@ -152,6 +152,7 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
     val ttsStatus = if (ttsActive) rawStatus else ReadAloudManager.Status.Idle
     val modelState by readAloud.modelState.collectAsStateWithLifecycle()
     val ttsPreferences by readAloud.preferences.collectAsStateWithLifecycle()
+    val remainingSeconds by readAloud.remainingSeconds.collectAsStateWithLifecycle()
     val ttsSettings = ttsPreferences.resolve(null)
     val sleepEndsAt by readAloud.sleepTimerEndsAt.collectAsStateWithLifecycle()
 
@@ -214,6 +215,7 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
                         voiceId = ttsSettings.voiceId,
                         speed = ttsSettings.speed,
                         sleepEndsAt = sleepEndsAt,
+                        remainingSeconds = remainingSeconds,
                         onPlayPause = readAloud::togglePlayPause,
                         onPrevious = { readAloud.previous() },
                         onNext = { readAloud.next() },
@@ -407,6 +409,7 @@ private fun ListeningControls(
     voiceId: Int,
     speed: Double,
     sleepEndsAt: Long?,
+    remainingSeconds: Long?,
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
@@ -420,13 +423,18 @@ private fun ListeningControls(
         append(
             when (status) {
                 ReadAloudManager.Status.Preparing -> stringResource(R.string.tts_preparing)
-                ReadAloudManager.Status.Playing -> stringResource(R.string.library_status_playing)
+                ReadAloudManager.Status.Playing -> stringResource(R.string.reader_status_playing)
                 ReadAloudManager.Status.Paused -> stringResource(R.string.tts_paused)
                 ReadAloudManager.Status.Ended -> stringResource(R.string.tts_ended)
                 is ReadAloudManager.Status.Error -> stringResource(R.string.tts_error, status.message)
                 else -> ""
             },
         )
+        // Lo que falta del libro solo mientras se lee o en pausa; la píldora es angosta, así que el estado va corto.
+        remainingSeconds?.takeIf { status == ReadAloudManager.Status.Playing || status == ReadAloudManager.Status.Paused }?.let { seconds ->
+            if (isNotEmpty()) append(" · ")
+            append(formatRemaining(seconds))
+        }
         sleepEndsAt?.let { endsAt ->
             if (isNotEmpty()) append(" · ")
             append(stringResource(R.string.sleep_timer_remaining, remainingMinutes(endsAt)))
@@ -476,6 +484,17 @@ private fun ListeningControls(
 }
 
 /** Minutos restantes hasta `endsAt`, actualizados cada 20 segundos mientras el temporizador esté activo. */
+/** Tiempo que falta para terminar el libro, en minutos u horas y minutos. */
+@Composable
+private fun formatRemaining(seconds: Long): String {
+    val minutes = ((seconds + 59) / 60).toInt()
+    return when {
+        minutes < 1 -> stringResource(R.string.remaining_under_minute)
+        minutes < 60 -> stringResource(R.string.remaining_minutes, minutes)
+        else -> stringResource(R.string.remaining_hours_minutes, minutes / 60, minutes % 60)
+    }
+}
+
 @Composable
 private fun remainingMinutes(endsAt: Long): Int {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }

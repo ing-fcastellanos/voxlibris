@@ -130,6 +130,10 @@ object TtsMath {
      */
     fun leadSeconds(rtf: Double): Double = (rtf * 6.0 + 0.5).coerceIn(0.5, MAX_LEAD_SECONDS)
 
+    /** Segundos para leer `chars` caracteres al ritmo medido (s/carácter a 1×) y la velocidad elegida. */
+    fun remainingSeconds(chars: Long, secondsPerCharAtUnitSpeed: Double, speed: Double): Long =
+        kotlin.math.ceil(chars * secondsPerCharAtUnitSpeed / speed.coerceAtLeast(0.1)).toLong()
+
     const val MAX_LEAD_SECONDS = 6.0
 
     /** Media móvil del factor de tiempo real (segundos de cómputo por segundo de audio). */

@@ -34,6 +34,7 @@
 
     <!-- Lectura en voz alta -->
     <string name="reader_player">Lectura en voz alta</string>
+    <string name="reader_status_playing">Leyendo</string>
     <string name="reader_change_voice">Cambiar lector, ahora %1$s</string>
     <string name="reader_speed_description">Velocidad %1$s</string>
     <string name="reader_speed">Velocidad</string>

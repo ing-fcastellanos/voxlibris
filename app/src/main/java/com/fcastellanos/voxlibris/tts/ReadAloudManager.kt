@@ -89,6 +89,12 @@ class ReadAloudManager(
         .map { it > 0 }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
+    /** Segundos que faltan para terminar el libro a la velocidad actual; nulo mientras no se sabe. */
+    private val _remainingSeconds = MutableStateFlow<Long?>(null)
+    val remainingSeconds: StateFlow<Long?> = _remainingSeconds.asStateFlow()
+    private val textIndexes = mutableMapOf<Long, BookTextIndex>()
+    private var indexJob: Job? = null
+
     /** Instante (epoch ms) en que el temporizador de sueño pausará la lectura, o null. */
     private val _sleepTimerEndsAt = MutableStateFlow<Long?>(null)
     val sleepTimerEndsAt: StateFlow<Long?> = _sleepTimerEndsAt.asStateFlow()
@@ -243,6 +249,7 @@ class ReadAloudManager(
                 Log.w(TAG, "No se pudo publicar la sesión multimedia; se lee sin notificación", e)
             }
             observe(created, bookId)
+            ensureTextIndex(bookId, session.publication)
             repeat(point?.skipSentences ?: 0) { created.skipToNextUtterance() }
             playRequested = true
             created.play()
@@ -316,6 +323,8 @@ class ReadAloudManager(
         saveProgressNow()
         startJob?.cancel()
         collectors?.cancel()
+        indexJob?.cancel()
+        _remainingSeconds.value = null
         highlightFallback?.cancel()
         sleepJob?.cancel()
         _sleepTimerEndsAt.value = null
@@ -366,6 +375,7 @@ class ReadAloudManager(
             launch {
                 nav.location.collect { location ->
                     pendingLocator = location.utteranceLocator
+                    updateRemaining()
                     _pageSync.tryEmit(location.utteranceLocator)
                     if (!hasStartedSpeaking) {
                         // Nada está sonando todavía (arranque, salto o cambio): el resaltado sigue
@@ -402,10 +412,36 @@ class ReadAloudManager(
                     hasStartedSpeaking = false
                     if (_status.value == Status.Playing) _status.value = Status.Preparing
                     nav.submitPreferences(prefs)
+                    updateRemaining()
                 }
             }
         }
     }
+
+    /** El índice de caracteres se arma una vez por libro, en segundo plano; mientras tanto no hay estimación. */
+    private fun ensureTextIndex(bookId: Long, publication: Publication) {
+        if (textIndexes.containsKey(bookId)) {
+            updateRemaining()
+            return
+        }
+        indexJob?.cancel()
+        indexJob = scope.launch {
+            val index = BookTextIndex.build(publication) ?: return@launch
+            textIndexes[bookId] = index
+            Log.d(TAG, "Índice de texto: ${index.totalChars} caracteres en ${index.resourceCount} recursos")
+            updateRemaining()
+        }
+    }
+
+    private fun updateRemaining() {
+        val bookId = _activeBookId.value ?: return
+        val index = textIndexes[bookId] ?: return
+        val at = _highlight.value ?: pendingLocator ?: resumeFrom ?: return
+        val chars = index.charsRemaining(at)
+        _remainingSeconds.value = chars?.let { TtsMath.remainingSeconds(it, SpeechRate.secondsPerCharAtUnitSpeed, currentSpeed()) }
+    }
+
+    private fun currentSpeed(): Double = ttsPreferences.preferences.value.resolve(null).speed
 
     private fun applyPendingHighlight() {
         highlightFallback?.cancel()

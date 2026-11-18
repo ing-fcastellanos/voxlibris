@@ -61,6 +61,9 @@
     <string name="quality_hint">Auto mide tu teléfono la primera vez y elige. Rápida sintetiza con 4 pasos; Alta con 8.</string>
     <string name="tts_preparing">Preparando la voz…</string>
     <string name="tts_paused">En pausa</string>
+    <string name="remaining_hours_minutes">faltan ≈ %1$d h %2$d min</string>
+    <string name="remaining_minutes">faltan ≈ %1$d min</string>
+    <string name="remaining_under_minute">falta menos de 1 min</string>
     <string name="tts_ended">Fin del libro</string>
     <string name="tts_error">No se pudo leer en voz alta: %1$s</string>
     <string name="tts_need_model_title">Descargar voces</string>

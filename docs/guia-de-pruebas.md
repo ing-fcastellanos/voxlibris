@@ -122,6 +122,7 @@ Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto de
 | 3.17 | Mantener pulsada una palabra del texto | Aparece el menú de selección con "Leer desde acá", "Copiar" y "Compartir". "Leer desde acá" arranca la lectura en voz alta en esa frase (o la mueve ahí si ya estaba leyendo); "Copiar" deja el texto en el portapapeles; "Compartir" abre el selector de apps. |
 | 3.18 | Detener la voz (✕) a mitad de un capítulo y volver a tocar los auriculares sin cambiar de página | Retoma en la misma frase donde se detuvo, no desde el inicio del capítulo. |
 | 3.19 | Sin voz activa, ir a una página del medio de un capítulo y tocar los auriculares | Empieza a leer en esa página (o un párrafo antes), no desde el inicio del capítulo. Si se pasa de página antes de tocar, arranca en la página nueva. |
+| 3.20 | Arrancar la voz y mirar la píldora de estado; cambiar la velocidad | A los pocos segundos dice "Leyendo · faltan ≈ N h M min" (o "≈ N min"). Es el tiempo para terminar el libro al ritmo real de la voz y la velocidad elegida: subir la velocidad lo baja en proporción, y va bajando a medida que avanza la lectura. En pausa se mantiene; mientras prepara la voz no se muestra. |
 | 3.16 | Frases largas con comas | Se oyen como una sola frase; en las comas puede notarse una pausa algo marcada (la frase se sintetiza en trozos cortados solo donde hay puntuación). No debe haber pausas donde el texto no las tiene. |
 | 3.14 | Un EPUB en inglés | La voz lee en inglés (`lang=en` en logcat). |
 
