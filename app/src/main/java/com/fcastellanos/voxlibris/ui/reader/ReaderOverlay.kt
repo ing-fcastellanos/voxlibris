@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,11 +18,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +63,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -70,6 +77,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import android.text.format.DateUtils
 import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.data.Highlight
+import com.fcastellanos.voxlibris.dictionary.DictionaryEntry
+import com.fcastellanos.voxlibris.dictionary.DictionarySense
+import com.fcastellanos.voxlibris.dictionary.FormOf
+import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
 import com.fcastellanos.voxlibris.VoxLibrisApp
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.tts.SupertonicModel
@@ -103,6 +114,7 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
     val highlights by viewModel.highlights.collectAsStateWithLifecycle()
     val tappedHighlight by viewModel.tappedHighlight.collectAsStateWithLifecycle()
     val noteEditor by viewModel.noteEditor.collectAsStateWithLifecycle()
+    val definition by viewModel.definition.collectAsStateWithLifecycle()
 
     val readAloud = viewModel.readAloud
     val activeBookId by readAloud.activeBookId.collectAsStateWithLifecycle()
@@ -170,6 +182,13 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
                     onSleepTimer = readAloud::setSleepTimer,
                 )
             }
+        }
+        definition?.let { state ->
+            DefinitionCard(
+                state = state,
+                onDismiss = viewModel::dismissDefinition,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 
@@ -443,6 +462,101 @@ private fun ProgressBar(locator: Locator?, positions: List<Locator>, onSeek: (In
         }
     }
 }
+
+/** Tarjeta de diccionario al pie de la página, como la de Kindle: palabra, categorías y acepciones. */
+@Composable
+private fun DefinitionCard(
+    state: ReaderViewModel.DefinitionState,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val uriHandler = LocalUriHandler.current
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp,
+    ) {
+        Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(state.word, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss) {
+                    Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.close))
+                }
+            }
+            Column(
+                Modifier
+                    .heightIn(max = 280.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(end = 12.dp),
+            ) {
+                when (state) {
+                    is ReaderViewModel.DefinitionState.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.definition_loading), modifier = Modifier.padding(start = 12.dp))
+                    }
+                    is ReaderViewModel.DefinitionState.NotFound -> Text(stringResource(R.string.definition_not_found, state.word))
+                    is ReaderViewModel.DefinitionState.Offline -> Text(stringResource(R.string.definition_offline))
+                    is ReaderViewModel.DefinitionState.Found -> {
+                        EntrySections(state.result.entry)
+                        state.result.lemma?.let { lemma ->
+                            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                            Text(lemma.word, style = MaterialTheme.typography.titleMedium)
+                            EntrySections(lemma)
+                        }
+                        Text(
+                            text = stringResource(R.string.definition_attribution),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+            }
+            if (state !is ReaderViewModel.DefinitionState.Loading) {
+                TextButton(onClick = { uriHandler.openUri(WiktionaryDictionary.pageUrl(state.word)) }) {
+                    Text(stringResource(R.string.definition_open))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EntrySections(entry: DictionaryEntry) {
+    entry.sections.take(MAX_SECTIONS).forEach { section ->
+        Text(
+            text = section.partOfSpeech,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+        )
+        section.senses.take(MAX_SENSES).forEachIndexed { index, sense ->
+            Text(senseText(index, sense), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp))
+        }
+    }
+}
+
+@Composable
+private fun senseText(index: Int, sense: DictionarySense): String {
+    sense.formOf?.let { form ->
+        val resource = when (form.kind) {
+            FormOf.Kind.VERB -> R.string.form_of_verb
+            FormOf.Kind.ADJECTIVE -> R.string.form_of_adjective
+            FormOf.Kind.NOUN -> R.string.form_of_noun
+            FormOf.Kind.OTHER -> R.string.form_of_other
+        }
+        return stringResource(resource, form.lemma)
+    }
+    val label = sense.label?.let { "($it) " }.orEmpty()
+    return "${index + 1}. $label${sense.text}"
+}
+
+private const val MAX_SECTIONS = 3
+private const val MAX_SENSES = 4
 
 /** Editor de la nota personal de un resaltado: al crearlo se puede omitir, al editarlo se puede cancelar. */
 @Composable

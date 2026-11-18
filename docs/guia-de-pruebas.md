@@ -92,6 +92,8 @@ Usar el *Quijote* para 2.2 a 2.6; el libro de prueba sirve para lo demás.
 | 2.10 | Con un EPUB que tenga enlaces web, tocar uno | Se abre el navegador. |
 | 2.11 | Mantener pulsado un texto → "Resaltar" | Se abre el diálogo "Resaltado guardado" con el pasaje y un campo para una nota personal; "Sin nota" lo cierra y el pasaje queda marcado en verde menta igual. El icono de marcador de la barra superior abre "Resaltados" con la lista: tocar uno lleva al pasaje; el tacho lo borra. Tocar un resaltado en el texto abre un diálogo con el pasaje y "Eliminar resaltado". Los resaltados sobreviven a cerrar y reabrir el libro, y se borran con el libro. |
 | 2.12 | Resaltar y escribir una nota → "Guardar"; abrir "Resaltados" | La nota aparece en cursiva debajo del pasaje. El lápiz de la lista y "Editar nota" en el diálogo del texto abren el editor con la nota actual; guardarla vacía la quita. Las notas persisten al reabrir el libro. |
+| 2.13 | Mirar en el texto un resaltado con nota | Al final del pasaje aparece un icono de nota en verde profundo, como en Kindle; los resaltados sin nota no lo tienen. Tocar el icono (o el pasaje) abre el diálogo con la nota. Al borrar la nota el icono desaparece. |
+| 2.14 | Mantener pulsada una sola palabra (p. ej. «casa», «corrían») | Además del menú, aparece al pie una tarjeta con la palabra, su categoría gramatical y las primeras acepciones del Wikcionario; una conjugación o plural muestra «Forma del verbo…» y debajo las acepciones del lema. Extender la selección a más palabras cierra la tarjeta; tocar fuera también. Sin internet la tarjeta dice que hace falta conexión. "Ver en Wikcionario" abre el navegador. |
 
 ---
 

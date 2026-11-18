@@ -41,10 +41,14 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.readium.r2.navigator.DecorableNavigator
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
+import org.readium.r2.navigator.html.HtmlDecorationTemplates
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.navigator.preferences.Theme
@@ -115,7 +119,15 @@ class ReaderFragment : Fragment() {
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
             menu.add(Menu.NONE, MENU_SHARE, 3, R.string.share)
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+            watchSelection()
             return true
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            selectionWatcher?.cancel()
+            selectionWatcher = null
+            viewModel.dismissDefinition()
+            super.onDestroyActionMode(mode)
         }
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
@@ -128,6 +140,23 @@ class ReaderFragment : Fragment() {
             }
             mode.finish()
             return true
+        }
+    }
+
+    /**
+     * Mientras dura la selección, revisa qué texto abarca: si es una sola palabra, como en Kindle,
+     * la busca en el diccionario; si se extiende a más palabras, cierra la tarjeta.
+     */
+    private var selectionWatcher: Job? = null
+
+    private fun watchSelection() {
+        selectionWatcher?.cancel()
+        val navigator = navigator ?: return
+        selectionWatcher = viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                viewModel.onSelectionChanged(navigator.currentSelection()?.locator?.text?.highlight)
+                delay(SELECTION_POLL_MS)
+            }
         }
     }
 
@@ -178,6 +207,9 @@ class ReaderFragment : Fragment() {
             listener = viewModel,
             configuration = EpubNavigatorFragment.Configuration {
                 selectionActionModeCallback = selectionActionMode
+                decorationTemplates = HtmlDecorationTemplates.defaultTemplates().apply {
+                    set(NoteMarkStyle::class, NoteMarkDecoration.template())
+                }
             },
         )
         super.onCreate(savedInstanceState)
@@ -309,6 +341,7 @@ class ReaderFragment : Fragment() {
     companion object {
         const val TAG = "reader"
         private const val MENU_HIGHLIGHT = 4
+        private const val SELECTION_POLL_MS = 400L
         private const val MENU_READ_FROM_HERE = 1
         private const val MENU_COPY = 2
         private const val MENU_SHARE = 3

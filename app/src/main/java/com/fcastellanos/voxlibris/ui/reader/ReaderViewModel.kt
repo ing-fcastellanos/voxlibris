@@ -8,6 +8,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.fcastellanos.voxlibris.data.BookRepository
 import com.fcastellanos.voxlibris.data.Highlight
 import com.fcastellanos.voxlibris.data.HighlightRepository
+import com.fcastellanos.voxlibris.dictionary.DictionaryResult
+import com.fcastellanos.voxlibris.dictionary.DictionaryWords
+import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
 import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReaderSession
@@ -54,6 +57,8 @@ class ReaderViewModel(
     val readAloud: ReadAloudManager,
     private val highlightRepository: HighlightRepository,
     private val highlightTint: Int,
+    private val noteMarkTint: Int,
+    private val dictionary: WiktionaryDictionary,
 ) : ViewModel(), EpubNavigatorFragment.Listener {
 
     sealed interface Navigation {
@@ -86,10 +91,61 @@ class ReaderViewModel(
     val highlights: StateFlow<List<Highlight>> = highlightRepository.observe(bookId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Los mismos resaltados como decoraciones para que Readium los dibuje sobre el texto. */
+    /**
+     * Los mismos resaltados como decoraciones para que Readium los dibuje sobre el texto.
+     * Los que tienen nota llevan además un icono al final del pasaje, como en Kindle.
+     */
     val highlightDecorations: StateFlow<List<Decoration>> = highlights
-        .map { list -> list.map { Decoration(id = decorationId(it.id), locator = it.locator, style = Decoration.Style.Highlight(tint = it.color)) } }
+        .map { list ->
+            list.flatMap { highlight ->
+                listOfNotNull(
+                    Decoration(id = decorationId(highlight.id), locator = highlight.locator, style = Decoration.Style.Highlight(tint = highlight.color)),
+                    highlight.note?.let {
+                        Decoration(id = noteDecorationId(highlight.id), locator = highlight.locator, style = NoteMarkStyle(tint = noteMarkTint))
+                    },
+                )
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Tarjeta de diccionario, como la de Kindle al mantener pulsada una palabra. */
+    sealed interface DefinitionState {
+        val word: String
+
+        data class Loading(override val word: String) : DefinitionState
+        data class Found(override val word: String, val result: DictionaryResult.Found) : DefinitionState
+        data class NotFound(override val word: String) : DefinitionState
+        data class Offline(override val word: String) : DefinitionState
+    }
+
+    private val _definition = MutableStateFlow<DefinitionState?>(null)
+    val definition: StateFlow<DefinitionState?> = _definition.asStateFlow()
+    private var lookupJob: Job? = null
+
+    /** Con una sola palabra seleccionada se busca su definición; con más texto, la tarjeta se cierra. */
+    fun onSelectionChanged(selectedText: String?) {
+        val word = DictionaryWords.singleWord(selectedText)
+        if (word == null) {
+            dismissDefinition()
+            return
+        }
+        if (_definition.value?.word == word) return
+        lookupJob?.cancel()
+        _definition.value = DefinitionState.Loading(word)
+        lookupJob = viewModelScope.launch {
+            _definition.value = when (val result = dictionary.lookUp(word)) {
+                is DictionaryResult.Found -> DefinitionState.Found(word, result)
+                DictionaryResult.NotFound -> DefinitionState.NotFound(word)
+                DictionaryResult.Offline -> DefinitionState.Offline(word)
+            }
+        }
+    }
+
+    fun dismissDefinition() {
+        lookupJob?.cancel()
+        lookupJob = null
+        _definition.value = null
+    }
 
     /** Resaltado que el usuario tocó en el texto, para ofrecer eliminarlo. */
     private val _tappedHighlight = MutableStateFlow<Highlight?>(null)
@@ -135,7 +191,7 @@ class ReaderViewModel(
     }
 
     fun onHighlightDecorationTapped(decorationId: String) {
-        val id = decorationId.removePrefix(HIGHLIGHT_DECORATION_PREFIX).toLongOrNull() ?: return
+        val id = HIGHLIGHT_DECORATION_ID.find(decorationId)?.groupValues?.get(1)?.toLongOrNull() ?: return
         _tappedHighlight.value = highlights.value.firstOrNull { it.id == id }
     }
 
@@ -260,9 +316,12 @@ class ReaderViewModel(
     companion object {
         const val HIGHLIGHTS_GROUP = "highlights"
         private const val HIGHLIGHT_DECORATION_PREFIX = "highlight-"
+        private val HIGHLIGHT_DECORATION_ID = Regex("^$HIGHLIGHT_DECORATION_PREFIX(\\d+)")
         private const val SAVE_DEBOUNCE_MS = 600L
 
         fun decorationId(highlightId: Long): String = HIGHLIGHT_DECORATION_PREFIX + highlightId
+
+        fun noteDecorationId(highlightId: Long): String = decorationId(highlightId) + "-note"
         private const val NEEDLE_CHARS = 24
         private const val MAX_ELEMENTS_TO_SCAN = 400
         private val WHITESPACE = Regex("\\s+")
@@ -278,6 +337,8 @@ class ReaderViewModel(
                     readAloud = container.readAloud,
                     highlightRepository = container.highlightRepository,
                     highlightTint = container.highlightTint,
+                    noteMarkTint = container.noteMarkTint,
+                    dictionary = container.dictionary,
                 )
             }
         }

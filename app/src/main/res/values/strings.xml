@@ -110,4 +110,15 @@
     <string name="add_note">Agregar nota</string>
     <string name="edit_note">Editar nota</string>
     <string name="no_note">Sin nota</string>
+
+    <!-- Diccionario -->
+    <string name="definition_loading">Buscando en el Wikcionario…</string>
+    <string name="definition_not_found">No encontramos «%1$s» en el Wikcionario.</string>
+    <string name="definition_offline">Necesitás conexión a internet para consultar el diccionario.</string>
+    <string name="definition_open">Ver en Wikcionario</string>
+    <string name="definition_attribution">Wikcionario · CC BY-SA</string>
+    <string name="form_of_verb">Forma del verbo «%1$s»</string>
+    <string name="form_of_adjective">Forma del adjetivo «%1$s»</string>
+    <string name="form_of_noun">Forma del sustantivo «%1$s»</string>
+    <string name="form_of_other">Forma de «%1$s»</string>
 </resources>

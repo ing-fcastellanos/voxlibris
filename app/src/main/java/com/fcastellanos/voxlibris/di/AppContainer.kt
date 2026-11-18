@@ -7,6 +7,7 @@ import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.data.BookRepository
 import com.fcastellanos.voxlibris.data.EpubImporter
 import com.fcastellanos.voxlibris.data.HighlightRepository
+import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
 import com.fcastellanos.voxlibris.data.LibraryStorage
 import com.fcastellanos.voxlibris.data.db.AppDatabase
 import com.fcastellanos.voxlibris.reading.ReaderRepository
@@ -41,6 +42,15 @@ class AppContainer(context: Context) {
 
     /** Color de los resaltados del usuario: `mint` del sistema de diseño (`mustard` queda para la frase que suena). */
     val highlightTint: Int by lazy { (ContextCompat.getColor(appContext, R.color.vx_mint) and 0x00FFFFFF) or (0x80 shl 24) }
+
+    /** Color del icono de nota junto a un resaltado: el `mint` profundo del sistema. */
+    val noteMarkTint: Int by lazy { ContextCompat.getColor(appContext, R.color.vx_mint_deep) }
+
+    /** Diccionario en línea; Wikimedia pide identificar la app en cada consulta. */
+    val dictionary: WiktionaryDictionary by lazy {
+        val version = runCatching { appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName }.getOrNull() ?: "0"
+        WiktionaryDictionary("VoxLibris/$version (https://github.com/ing-fcastellanos/voxlibris)")
+    }
     val importer: EpubImporter by lazy { EpubImporter(appContext, readium, storage, database.bookDao()) }
     val readingPreferences: ReadingPreferencesStore by lazy { ReadingPreferencesStore(appContext) }
     val readerRepository: ReaderRepository by lazy { ReaderRepository(readium, bookRepository, storage) }
