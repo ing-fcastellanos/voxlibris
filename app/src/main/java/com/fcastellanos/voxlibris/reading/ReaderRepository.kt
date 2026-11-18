@@ -16,8 +16,12 @@ class ReaderSession(
     val title: String,
     val publication: Publication,
     val navigatorFactory: EpubNavigatorFactory,
-    val initialLocator: Locator?,
-)
+    /** Última posición guardada al abrir o reabrir el lector; la voz en segundo plano la va moviendo. */
+    initialLocator: Locator?,
+) {
+    var initialLocator: Locator? = initialLocator
+        internal set
+}
 
 sealed interface OpenBookError {
     data object BookNotFound : OpenBookError
@@ -51,9 +55,12 @@ class ReaderRepository(
      * Cada `open`/`retain` debe emparejarse con un `release`; la publicación se cierra al llegar a cero.
      */
     suspend fun open(bookId: Long): OpenBookResult = withContext(Dispatchers.IO) {
-        get(bookId)?.let {
+        get(bookId)?.let { session ->
+            // La sesión sigue viva porque la voz la retiene: la posición de apertura ya no es la
+            // original sino la que la lectura en voz alta fue guardando mientras tanto.
+            books.get(bookId)?.let { entity -> session.initialLocator = parseLocator(entity.progression) ?: session.initialLocator }
             retain(bookId)
-            return@withContext OpenBookResult.Success(it)
+            return@withContext OpenBookResult.Success(session)
         }
 
         val entity = books.get(bookId)
@@ -71,9 +78,7 @@ class ReaderRepository(
             return@withContext OpenBookResult.Failure(OpenBookError.NotSupported)
         }
 
-        val initialLocator = entity.progression?.let { json ->
-            runCatching { Locator.fromJSON(JSONObject(json)) }.getOrNull()
-        }
+        val initialLocator = parseLocator(entity.progression)
         val session = ReaderSession(
             bookId = bookId,
             title = entity.title,
@@ -87,6 +92,9 @@ class ReaderRepository(
         }
         OpenBookResult.Success(session)
     }
+
+    private fun parseLocator(json: String?): Locator? =
+        json?.let { runCatching { Locator.fromJSON(JSONObject(it)) }.getOrNull() }
 
     /** Suma una referencia a una sesión ya abierta (por ejemplo, la lectura en voz alta en segundo plano). */
     fun retain(bookId: Long) {

@@ -8,6 +8,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Exención de ahorro de batería: sin ella, la síntesis de voz se frena con la pantalla apagada. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Para abrir la pantalla de ahorro de batería por aplicación de MIUI, si existe. -->
+    <queries>
+        <package android:name="com.miui.powerkeeper" />
+    </queries>
+
 
     <application
         android:name=".VoxLibrisApp"

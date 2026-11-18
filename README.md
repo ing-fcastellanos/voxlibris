@@ -10,20 +10,21 @@ Las apps de lectura que "leen en voz alta" suelen depender de un servicio en la 
 
 ## Estado
 
-El proyecto está en construcción. La exploración técnica ya cerró y la base del proyecto compila.
+El proyecto está en construcción. Las cinco fases funcionan en el teléfono de pruebas; falta la migración visual del lector al sistema de diseño y lo opcional de la fase 6.
 
 | Fase | Contenido | Estado |
 |---|---|---|
 | 0 | Exploración de motores TTS on-device y prueba de escucha en español | Hecha ([detalle](exploracion/tts-test/README.md)) |
 | 1 | Entorno: Android SDK, Gradle, matriz de versiones | Hecha |
-| 2 | Esqueleto: Compose, Readium, sherpa-onnx, Room, importación de EPUB y biblioteca | Hecha; pendiente de prueba en teléfono |
-| 3 | Lector EPUB: navegador de Readium, índice, ajustes de lectura, progreso | Hecha; pendiente de prueba en teléfono |
-| 4 | Voz: motor `TtsEngine` de Readium sobre sherpa-onnx + Supertonic 3, catálogo de lectores | Hecha; pendiente de prueba en teléfono |
-| 5 | Reproducción en segundo plano, controles multimedia, temporizador de sueño | Compila y pasan los tests; pendiente de prueba en teléfono |
+| 2 | Esqueleto: Compose, Readium, sherpa-onnx, Room, importación de EPUB y biblioteca | Hecha y probada en el POCO X3 Pro |
+| 3 | Lector EPUB: navegador de Readium, índice, ajustes de lectura, progreso | Hecha y probada en el POCO X3 Pro; después se sumaron resaltados con notas y diccionario |
+| 4 | Voz: motor `TtsEngine` de Readium sobre sherpa-onnx + Supertonic 3, catálogo de lectores | Hecha y probada en el POCO X3 Pro |
+| 5 | Reproducción en segundo plano, controles multimedia, temporizador de sueño | Hecha y probada en el POCO X3 Pro (17/11/2026) |
 | 6 | Opcional: Kokoro con fonetizador español propio; exponer las voces como motor TTS del sistema | Pendiente |
 
 ## Qué hace hoy
 
+- **Primer inicio**: una pantalla pide, una sola vez, la exención de ahorro de batería (diálogo del sistema de un toque; sin ella la voz se entrecorta con la pantalla apagada) y ofrece descargar las voces con el avance de la descarga y de la instalación.
 - Importa EPUB desde el almacenamiento (o con "Abrir con VoxLibris"), con portada, metadatos y detección de duplicados.
 - Lector paginado o de desplazamiento continuo sobre el navegador de Readium: toque en los bordes para pasar de página, toque en el centro para mostrar u ocultar la interfaz.
 - Índice del libro con el capítulo actual resaltado, barra de progreso con salto a cualquier posición.
@@ -34,7 +35,7 @@ El proyecto está en construcción. La exploración técnica ya cerró y la base
 - **Lectura en voz alta** con el botón de auriculares: la frase que suena se resalta y la página la sigue. Controles de pausa, frase anterior y siguiente; la lectura se encadena sin silencios entre frases.
 - **Catálogo de lectores**: diez voces (cinco femeninas, cinco masculinas) con muestra de audio, velocidad de 0,6× a 2,0× y calidad Auto, Rápida o Alta. "Auto" mide el teléfono una vez y elige 4 u 8 pasos de difusión. Por encima de 1,3× el modelo no se fuerza: sintetiza a 1,3× y el reproductor estira el audio conservando el tono.
 - Las voces se descargan dentro de la app una sola vez (123 MB, con verificación SHA-256) y después todo funciona sin conexión.
-- **Segundo plano**: la lectura sigue con la pantalla apagada o fuera del lector, con controles en la notificación y la pantalla de bloqueo (Media3 `MediaSessionService`). La biblioteca muestra una barra "Leyendo" para volver al libro. Temporizador de sueño de 10 a 60 minutos. El progreso se guarda también mientras se escucha en segundo plano.
+- **Segundo plano**: la lectura sigue con la pantalla apagada o fuera del lector, con controles en la notificación y la pantalla de bloqueo (Media3 `MediaSessionService`). La biblioteca muestra un mini reproductor para pausar, detener o volver al libro. Temporizador de sueño de 10 a 60 minutos. El progreso se guarda también mientras se escucha en segundo plano.
 
 ## Cómo funciona
 

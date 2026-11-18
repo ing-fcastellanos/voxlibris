@@ -11,6 +11,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fcastellanos.voxlibris.onboarding.OnboardingStore
+import com.fcastellanos.voxlibris.ui.onboarding.OnboardingScreen
+import com.fcastellanos.voxlibris.ui.onboarding.OnboardingViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fcastellanos.voxlibris.ui.library.LibraryScreen
 import com.fcastellanos.voxlibris.ui.library.LibraryViewModel
@@ -24,14 +28,21 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: LibraryViewModel by viewModels { LibraryViewModel.factory(container) }
 
+    private val onboarding by lazy { OnboardingStore(applicationContext) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) importFromViewIntent(intent)
         setContent {
             VoxLibrisTheme {
+                val onboardingDone by onboarding.completed.collectAsStateWithLifecycle()
                 var showVoices by rememberSaveable { mutableStateOf(false) }
-                if (showVoices) {
+                if (!onboardingDone) {
+                    val onboardingViewModel: OnboardingViewModel =
+                        viewModel(factory = OnboardingViewModel.factory(container.voiceModels, onboarding))
+                    OnboardingScreen(viewModel = onboardingViewModel)
+                } else if (showVoices) {
                     val sample = stringResource(R.string.sample_sentence)
                     val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample))
                     VoicesScreen(viewModel = voicesViewModel, onBack = { showVoices = false })

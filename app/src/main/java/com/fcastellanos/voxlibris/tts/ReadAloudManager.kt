@@ -21,10 +21,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.readium.navigator.media.tts.TtsNavigator
@@ -76,6 +79,11 @@ class ReadAloudManager(
     /** Posición a la que conviene llevar la página para seguir la lectura. */
     private val _pageSync = MutableSharedFlow<Locator>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val pageSync: SharedFlow<Locator> = _pageSync.asSharedFlow()
+
+    /** Cierto mientras un lector en pantalla sigue la lectura (está suscrito a [pageSync]); falso con la pantalla bloqueada o fuera del lector. */
+    val readerFollowing: StateFlow<Boolean> = _pageSync.subscriptionCount
+        .map { it > 0 }
+        .stateIn(scope, SharingStarted.Eagerly, false)
 
     /** Instante (epoch ms) en que el temporizador de sueño pausará la lectura, o null. */
     private val _sleepTimerEndsAt = MutableStateFlow<Long?>(null)
@@ -193,6 +201,14 @@ class ReadAloudManager(
         Log.d(TAG, "pause() pedido desde:", Throwable())
         navigator?.pause()
         provider.activeEngine?.interrupt()
+        saveProgressNow()
+    }
+
+    /** Guarda la posición de la lectura sin esperar al muestreo periódico (al pausar o detener). */
+    private fun saveProgressNow() {
+        val bookId = _activeBookId.value ?: return
+        val locator = pendingLocator ?: return
+        scope.launch { bookRepository.saveProgression(bookId, locator.toJSON().toString()) }
     }
 
     fun togglePlayPause() {
@@ -236,6 +252,7 @@ class ReadAloudManager(
     }
 
     fun stop() {
+        saveProgressNow()
         startJob?.cancel()
         collectors?.cancel()
         highlightFallback?.cancel()

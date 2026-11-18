@@ -37,6 +37,10 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
     private val _state = MutableStateFlow<State>(if (isInstalled(modelDir)) State.Ready(modelDir) else State.NotInstalled)
     val state: StateFlow<State> = _state.asStateFlow()
 
+    /** Avance de la descompresión mientras el estado es [State.Installing], de 0 a 1; nulo el resto del tiempo. */
+    private val _installProgress = MutableStateFlow<Float?>(null)
+    val installProgress: StateFlow<Float?> = _installProgress.asStateFlow()
+
     private var job: Job? = null
 
     fun readyModelDir(): File? = modelDir.takeIf { isInstalled(it) }
@@ -79,16 +83,18 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
         try {
             download(archive)
             _state.value = State.Installing
+            _installProgress.value = 0f
             val staging = File(modelsRoot, "${SupertonicModel.DIR_NAME}.tmp").also {
                 it.deleteRecursively()
                 it.mkdirs()
             }
-            ArchiveExtractor.extractTarBz2(archive, staging)
+            ArchiveExtractor.extractTarBz2(archive, staging) { _installProgress.value = it }
             if (!isInstalled(staging)) throw IOException("El paquete no contiene todos los archivos esperados")
             modelDir.deleteRecursively()
             if (!staging.renameTo(modelDir)) throw IOException("No se pudo mover el modelo a su carpeta")
         } finally {
             archive.delete()
+            _installProgress.value = null
         }
     }
 

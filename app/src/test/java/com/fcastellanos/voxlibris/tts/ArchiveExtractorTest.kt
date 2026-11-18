@@ -43,6 +43,18 @@ class ArchiveExtractorTest {
     }
 
     @Test
+    fun `reports progress up to completion without going backwards`() {
+        val archive = tarBz2("pkg/a.txt" to "a".repeat(50_000), "pkg/b.txt" to "b".repeat(50_000))
+        val out = Files.createTempDirectory("out").toFile()
+        val progress = mutableListOf<Float>()
+        ArchiveExtractor.extractTarBz2(archive, out) { progress += it }
+        assertTrue(progress.isNotEmpty())
+        assertEquals(1f, progress.last())
+        assertEquals(progress, progress.sorted())
+        assertTrue(progress.all { it in 0f..1f })
+    }
+
+    @Test
     fun `rejects entries that escape the target directory`() {
         val archive = tarBz2("pkg/../../evil.txt" to "nope")
         val out = Files.createTempDirectory("out").toFile()

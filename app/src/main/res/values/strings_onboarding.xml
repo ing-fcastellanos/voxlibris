@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primer inicio -->
+    <string name="onboarding_title">Antes de empezar</string>
+    <string name="onboarding_intro">Dos ajustes para que la lectura en voz alta funcione bien. Se hacen una sola vez.</string>
+    <string name="onboarding_battery_title">Lectura con la pantalla apagada</string>
+    <string name="onboarding_battery_body">Para que la voz siga cuando bloqueás el teléfono, VoxLibris necesita funcionar sin restricciones de batería. Sin esto, con la pantalla apagada la lectura se entrecorta.</string>
+    <string name="onboarding_battery_allow">Permitir sin restricciones</string>
+    <string name="onboarding_battery_settings">Abrir ajustes de batería</string>
+    <string name="onboarding_battery_done">Listo: sin restricciones de batería</string>
+    <string name="onboarding_battery_pending">Si el permiso no apareció, abrí los ajustes de batería y elegí “Sin restricciones”.</string>
+    <string name="onboarding_voices_title">Voces en el teléfono</string>
+    <string name="onboarding_voices_body">Las voces se descargan una sola vez (%1$d MB) y después todo funciona sin conexión. Conviene hacerlo con wifi.</string>
+    <string name="onboarding_voices_download">Descargar voces</string>
+    <string name="onboarding_voices_downloading">Descargando las voces…</string>
+    <string name="onboarding_voices_downloading_detail">%1$d MB de %2$d MB</string>
+    <string name="onboarding_voices_installing">Instalando las voces…</string>
+    <string name="onboarding_voices_done">Listo: voces instaladas</string>
+    <string name="onboarding_voices_failed">No se pudieron descargar las voces: %1$s</string>
+    <string name="onboarding_voices_retry">Reintentar</string>
+    <string name="onboarding_continue">Continuar</string>
+    <string name="onboarding_later">Lo que falte se puede hacer después desde Lectores.</string>
+</resources>

@@ -8,44 +8,45 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.fcastellanos.voxlibris.data.BookRepository
 import com.fcastellanos.voxlibris.data.Highlight
 import com.fcastellanos.voxlibris.data.HighlightRepository
+import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.dictionary.DictionaryResult
 import com.fcastellanos.voxlibris.dictionary.DictionaryWords
 import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
-import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReaderSession
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.Selection
-import org.readium.r2.shared.publication.services.content.Content
-import org.readium.r2.shared.publication.services.content.content
-import org.readium.r2.shared.util.Language
-import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
-import org.readium.r2.shared.util.tokenizer.TextUnit
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.EpubPreferencesEditor
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.services.content.Content
+import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.publication.services.positions
 import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.Language
+import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
+import org.readium.r2.shared.util.tokenizer.TextUnit
 
 @OptIn(ExperimentalReadiumApi::class)
 class ReaderViewModel(
@@ -202,6 +203,34 @@ class ReaderViewModel(
     private val _navigation = Channel<Navigation>(Channel.BUFFERED)
     val navigation: Flow<Navigation> = _navigation.receiveAsFlow()
 
+    /**
+     * Con la pantalla bloqueada o fuera del lector, la página deja de seguir la voz. Si mientras
+     * tanto la lectura avanzó, al volver se lleva la página hasta la frase actual, también en pausa.
+     * Si no avanzó (se pausó en el lector y se hojeó otra cosa), se respeta la página que se mira.
+     */
+    private fun followReadAloudWhileAway() {
+        viewModelScope.launch {
+            var lastSeen = readAloud.highlight.value
+            var wasFollowing = readAloud.readerFollowing.value
+            var missed: Locator? = null
+            combine(readAloud.readerFollowing, readAloud.highlight, readAloud.activeBookId) { following, highlight, activeId ->
+                Triple(following, highlight, activeId)
+            }.collect { (following, highlight, activeId) ->
+                if (activeId != bookId) {
+                    missed = null
+                } else {
+                    if (!following && highlight != null && highlight != lastSeen) missed = highlight
+                    if (following && !wasFollowing) {
+                        missed?.let { _navigation.trySend(Navigation.ToLocator(it)) }
+                        missed = null
+                    }
+                }
+                lastSeen = highlight
+                wasFollowing = following
+            }
+        }
+    }
+
     private val _externalLinks = Channel<AbsoluteUrl>(Channel.BUFFERED)
     val externalLinks: Flow<AbsoluteUrl> = _externalLinks.receiveAsFlow()
 
@@ -209,6 +238,7 @@ class ReaderViewModel(
     private var lastSavedJson: String? = session?.initialLocator?.toJSON()?.toString()
 
     init {
+        followReadAloudWhileAway()
         session?.let { s ->
             viewModelScope.launch {
                 _positions.value = runCatching { s.publication.positions() }.getOrDefault(emptyList())

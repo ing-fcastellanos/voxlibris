@@ -15,7 +15,7 @@ Dispositivo de referencia: POCO X3 Pro (Snapdragon 860, MIUI). El Galaxy S25 sir
    - **Depuración USB**
    - **Instalar vía USB** (MIUI puede pedir iniciar sesión con cuenta Mi y tener SIM; sin esto `installDebug` falla con `INSTALL_FAILED_USER_RESTRICTED`)
    - **Depuración USB (ajustes de seguridad)**
-3. Para las pruebas de segundo plano (sección 4), Ajustes → Batería → Ahorro de batería por aplicación → VoxLibris → **Sin restricciones**. En recientes, mantener pulsada la tarjeta de VoxLibris y tocar el candado para que MIUI no la cierre.
+3. Para las pruebas de segundo plano (sección 4), Ajustes → Batería → Ahorro de batería por aplicación → VoxLibris → **Sin restricciones**. **Este ajuste se pierde al desinstalar y volver a instalar la app**: sin él, MIUI deshabilita el wake lock y baja el CPU con la pantalla apagada, la síntesis pasa de 0,4 a entre 3 y 8 veces el tiempo real y la lectura suena a tirones (unos segundos de audio, silencio y salto adelante). En recientes, mantener pulsada la tarjeta de VoxLibris y tocar el candado para que MIUI no la cierre.
 4. Conectar por USB en modo "Transferencia de archivos" y aceptar la huella de la PC cuando aparezca.
 
 ### En la PC
@@ -71,6 +71,8 @@ Los mensajes propios de la app salen con la etiqueta `VoxLibris.TTS`: carga del 
 | 1.7 | Mantener pulsada una tarjeta → "Eliminar" | La tarjeta desaparece y el snackbar lo confirma. Comprobar que el archivo se borró: `adb shell run-as com.fcastellanos.voxlibris ls files/books`. |
 | 1.8 | Rotar la pantalla en la biblioteca; cerrar la app desde recientes y reabrir | Sin crash. Los libros persisten. |
 | 1.9 | `./gradlew :app:connectedDebugAndroidTest` | 6 tests en verde: 3 de `EpubImporterTest`, 3 de `ReaderRepositoryTest`. |
+| 1.10 | Primer inicio (o tras borrar los datos de la app) | Pantalla "Antes de empezar" con dos pasos. Paso 1, batería: "Permitir sin restricciones" abre el diálogo del sistema; al aceptarlo el paso queda con tilde "Listo: sin restricciones de batería" (en MIUI, Ajustes → Batería → VoxLibris pasa a "Sin restricciones"). "Abrir ajustes de batería" abre la pantalla de MIUI de la app. |
+| 1.11 | En "Antes de empezar", paso 2 → "Descargar voces" | Barra de avance con "Descargando las voces…" y "NN MB de 123 MB"; después "Instalando las voces…" con su porcentaje; al final tilde "Listo: voces instaladas". "Cancelar" vuelve al botón de descarga. "Continuar" lleva a la biblioteca y la pantalla no vuelve a aparecer; la descarga, si quedó en curso, sigue y se ve en Lectores. |
 
 ---
 
@@ -125,18 +127,21 @@ Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto de
 
 ## 4. Fase 5: segundo plano
 
+Verificada en el POCO X3 Pro el 17/11/2026: 4.1 a 4.10 OK. La 4.11 salió de esa ronda (la página no seguía a la voz al volver con la lectura en pausa) y quedó corregida.
+
 | ID | Prueba | Resultado esperado |
 |---|---|---|
 | 4.1 | Primer "Escuchar" en Android 13 o superior | Aparece el permiso de notificaciones. Aceptar. |
 | 4.2 | Al empezar a leer, bajar el panel de notificaciones | Notificación multimedia con título y autor del libro, portada y tres controles: frase anterior, ▶/⏸ y frase siguiente. Los tres funcionan; los de frase son comandos propios de VoxLibris (el adaptador de Readium no publica saltos), así que también responden a los botones de auriculares que envíen "anterior/siguiente". |
-| 4.3 | Bloquear el teléfono | Sigue leyendo al menos diez minutos con la pantalla apagada. Los controles aparecen en la pantalla de bloqueo. Si se corta, revisar el paso 3 de la preparación (ahorro de batería de MIUI) y repetir. |
-| 4.4 | Salir del lector con Atrás mientras lee | Sigue sonando. En la biblioteca aparece la barra "Leyendo: <título>" con ▶/⏸, "Abrir" y ✕. "Abrir" vuelve al lector con el resaltado en la frase actual. |
+| 4.3 | Bloquear el teléfono | Sigue leyendo al menos diez minutos con la pantalla apagada, sin cortes ni saltos. Los controles aparecen en la pantalla de bloqueo. Si suena a tirones o se corta, revisar el paso 3 de la preparación (ahorro de batería de MIUI; se reinicia con cada instalación limpia) y repetir. Para confirmarlo desde la PC: `adb shell dumpsys deviceidle whitelist` debe listar la app, y en `adb logcat -s VoxLibris.TTS` el RTF de "Trozo sintetizado" debe seguir por debajo de 1 con la pantalla apagada. |
+| 4.4 | Salir del lector con Atrás mientras lee | Sigue sonando. En la biblioteca aparece el mini reproductor con el título, ▶/⏸ y ✕. Tocarlo vuelve al lector con el resaltado en la frase actual. |
 | 4.5 | Ir al inicio y tocar la notificación | Abre el lector del libro que suena. |
 | 4.6 | ⏱ → "10 minutos" | El estado muestra "Se detiene en 10 min" y la cuenta baja. A los diez minutos se pausa. "Sin temporizador" cancela. |
 | 4.7 | Descartar la app de recientes mientras lee; repetir mientras está en pausa | Leyendo: sigue (servicio en primer plano). En pausa: se detiene y la notificación desaparece. |
 | 4.8 | Escuchar cinco minutos con el lector cerrado, detener con ✕ y abrir el libro | Se abre donde quedó la lectura (el progreso se guarda cada tres segundos en segundo plano). |
 | 4.9 | Con un libro sonando, abrir otro y tocar los auriculares | El primero se detiene y empieza el segundo; la barra de la biblioteca cambia de título. |
 | 4.10 | Auriculares Bluetooth con botón multimedia | Play y pausa desde el auricular funcionan. |
+| 4.11 | Escuchar varios minutos con la pantalla bloqueada, pausar desde la pantalla de bloqueo y volver a la app (con el lector abierto detrás, o desde la biblioteca tocando el mini reproductor) | El lector muestra la página de la frase donde se pausó, con el resaltado visible. Si en cambio se pausó dentro del lector y se hojeó otra página antes de bloquear, al volver se respeta esa página. |
 
 ---
 
