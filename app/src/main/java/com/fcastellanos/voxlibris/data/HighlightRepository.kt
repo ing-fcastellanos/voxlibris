@@ -15,6 +15,7 @@ data class Highlight(
     val text: String,
     val color: Int,
     val createdAt: Long,
+    val note: String?,
 )
 
 class HighlightRepository(private val dao: HighlightDao) {
@@ -22,7 +23,7 @@ class HighlightRepository(private val dao: HighlightDao) {
     fun observe(bookId: Long): Flow<List<Highlight>> = dao.observeForBook(bookId).map { rows ->
         rows.mapNotNull { row ->
             val locator = runCatching { Locator.fromJSON(JSONObject(row.locator)) }.getOrNull() ?: return@mapNotNull null
-            Highlight(row.id, row.bookId, locator, row.text, row.color, row.createdAt)
+            Highlight(row.id, row.bookId, locator, row.text, row.color, row.createdAt, note = row.note)
         }
     }
 
@@ -37,6 +38,9 @@ class HighlightRepository(private val dao: HighlightDao) {
             totalProgression = locator.locations.totalProgression,
         ),
     )
+
+    /** Una nota en blanco borra la anterior. */
+    suspend fun updateNote(id: Long, note: String) = dao.updateNote(id, note.trim().ifEmpty { null })
 
     suspend fun delete(id: Long) = dao.delete(id)
 }

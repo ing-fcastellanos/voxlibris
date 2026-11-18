@@ -95,13 +95,39 @@ class ReaderViewModel(
     private val _tappedHighlight = MutableStateFlow<Highlight?>(null)
     val tappedHighlight: StateFlow<Highlight?> = _tappedHighlight.asStateFlow()
 
+    /** Nota que el usuario está escribiendo, para un resaltado recién guardado o para uno que ya tenía. */
+    data class NoteEditor(val highlightId: Long, val text: String, val note: String?, val isNew: Boolean)
+
+    private val _noteEditor = MutableStateFlow<NoteEditor?>(null)
+    val noteEditor: StateFlow<NoteEditor?> = _noteEditor.asStateFlow()
+
+    /** Guarda el resaltado y abre el editor de nota; cerrarlo sin escribir deja el resaltado igual. */
     fun addHighlight(selection: Selection) {
-        viewModelScope.launch { highlightRepository.add(bookId, selection.locator, highlightTint) }
+        val text = selection.locator.text.highlight.orEmpty().trim()
+        viewModelScope.launch {
+            val id = highlightRepository.add(bookId, selection.locator, highlightTint)
+            _noteEditor.value = NoteEditor(id, text, note = null, isNew = true)
+        }
+    }
+
+    fun editNote(highlight: Highlight) {
+        _tappedHighlight.value = null
+        _noteEditor.value = NoteEditor(highlight.id, highlight.text, highlight.note, isNew = false)
+    }
+
+    fun saveNote(highlightId: Long, note: String) {
+        viewModelScope.launch { highlightRepository.updateNote(highlightId, note) }
+        _noteEditor.value = null
+    }
+
+    fun dismissNoteEditor() {
+        _noteEditor.value = null
     }
 
     fun deleteHighlight(id: Long) {
         viewModelScope.launch { highlightRepository.delete(id) }
         if (_tappedHighlight.value?.id == id) _tappedHighlight.value = null
+        if (_noteEditor.value?.highlightId == id) _noteEditor.value = null
     }
 
     fun goToHighlight(highlight: Highlight) {

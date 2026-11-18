@@ -103,4 +103,11 @@
     <string name="delete_highlight">Eliminar resaltado</string>
     <string name="go_to_highlight">Ir al pasaje</string>
     <string name="close">Cerrar</string>
+    <string name="save">Guardar</string>
+    <string name="note_title">Nota</string>
+    <string name="note_prompt">Si querés, agregale una nota personal.</string>
+    <string name="note_label">Tu nota</string>
+    <string name="add_note">Agregar nota</string>
+    <string name="edit_note">Editar nota</string>
+    <string name="no_note">Sin nota</string>
 </resources>

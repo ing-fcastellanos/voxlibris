@@ -32,6 +32,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -52,12 +53,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -98,6 +102,7 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
     var showHighlights by rememberSaveable { mutableStateOf(false) }
     val highlights by viewModel.highlights.collectAsStateWithLifecycle()
     val tappedHighlight by viewModel.tappedHighlight.collectAsStateWithLifecycle()
+    val noteEditor by viewModel.noteEditor.collectAsStateWithLifecycle()
 
     val readAloud = viewModel.readAloud
     val activeBookId by readAloud.activeBookId.collectAsStateWithLifecycle()
@@ -205,6 +210,10 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
                 viewModel.goToHighlight(highlight)
                 showHighlights = false
             },
+            onEditNote = { highlight ->
+                viewModel.editNote(highlight)
+                showHighlights = false
+            },
             onDelete = viewModel::deleteHighlight,
             onDismiss = { showHighlights = false },
         )
@@ -213,13 +222,38 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
         AlertDialog(
             onDismissRequest = viewModel::dismissTappedHighlight,
             title = { Text(stringResource(R.string.highlight_dialog_title)) },
-            text = { Text("“${highlight.text}”", maxLines = 8, overflow = TextOverflow.Ellipsis) },
+            text = {
+                Column {
+                    Text("“${highlight.text}”", maxLines = 6, overflow = TextOverflow.Ellipsis)
+                    highlight.note?.let { note ->
+                        Text(
+                            text = note,
+                            fontStyle = FontStyle.Italic,
+                            maxLines = 6,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { viewModel.deleteHighlight(highlight.id) }) { Text(stringResource(R.string.delete_highlight)) }
+                Row {
+                    TextButton(onClick = { viewModel.deleteHighlight(highlight.id) }) { Text(stringResource(R.string.delete)) }
+                    TextButton(onClick = { viewModel.editNote(highlight) }) {
+                        Text(stringResource(if (highlight.note == null) R.string.add_note else R.string.edit_note))
+                    }
+                }
             },
             dismissButton = {
                 TextButton(onClick = viewModel::dismissTappedHighlight) { Text(stringResource(R.string.close)) }
             },
+        )
+    }
+    noteEditor?.let { editor ->
+        NoteDialog(
+            editor = editor,
+            onSave = { note -> viewModel.saveNote(editor.highlightId, note) },
+            onDismiss = viewModel::dismissNoteEditor,
         )
     }
     if (showVoices) {
@@ -410,11 +444,59 @@ private fun ProgressBar(locator: Locator?, positions: List<Locator>, onSeek: (In
     }
 }
 
+/** Editor de la nota personal de un resaltado: al crearlo se puede omitir, al editarlo se puede cancelar. */
+@Composable
+private fun NoteDialog(
+    editor: ReaderViewModel.NoteEditor,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var note by rememberSaveable(editor.highlightId) { mutableStateOf(editor.note.orEmpty()) }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(editor.highlightId) { focusRequester.requestFocus() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(if (editor.isNew) R.string.highlight_saved else R.string.note_title)) },
+        text = {
+            Column {
+                if (editor.isNew) {
+                    Text(stringResource(R.string.note_prompt), modifier = Modifier.padding(bottom = 8.dp))
+                }
+                Text(
+                    text = "“${editor.text}”",
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text(stringResource(R.string.note_label)) },
+                    minLines = 3,
+                    maxLines = 6,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                        .focusRequester(focusRequester),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(note) }) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(if (editor.isNew) R.string.no_note else R.string.cancel)) }
+        },
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HighlightsSheet(
     highlights: List<Highlight>,
     onGo: (Highlight) -> Unit,
+    onEditNote: (Highlight) -> Unit,
     onDelete: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -438,14 +520,33 @@ private fun HighlightsSheet(
                             Text("“${highlight.text}”", maxLines = 3, overflow = TextOverflow.Ellipsis)
                         },
                         supportingContent = {
-                            Text(
-                                text = DateUtils.getRelativeTimeSpanString(highlight.createdAt).toString(),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                            Column {
+                                highlight.note?.let { note ->
+                                    Text(
+                                        text = note,
+                                        fontStyle = FontStyle.Italic,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(bottom = 4.dp),
+                                    )
+                                }
+                                Text(
+                                    text = DateUtils.getRelativeTimeSpanString(highlight.createdAt).toString(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                         },
                         trailingContent = {
-                            IconButton(onClick = { onDelete(highlight.id) }) {
-                                Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.delete_highlight))
+                            Row {
+                                IconButton(onClick = { onEditNote(highlight) }) {
+                                    Icon(
+                                        painterResource(R.drawable.ic_edit),
+                                        contentDescription = stringResource(if (highlight.note == null) R.string.add_note else R.string.edit_note),
+                                    )
+                                }
+                                IconButton(onClick = { onDelete(highlight.id) }) {
+                                    Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.delete_highlight))
+                                }
                             }
                         },
                         modifier = Modifier.clickable { onGo(highlight) },

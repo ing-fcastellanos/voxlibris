@@ -15,7 +15,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * La migración automática 1→2 tiene que conservar la biblioteca y crear la tabla de resaltados.
+ * Las migraciones automáticas tienen que conservar la biblioteca y los resaltados:
+ * 1→2 crea la tabla de resaltados y 2→3 le agrega la columna de nota.
  * Trabaja sobre una base propia (`migration-test.db`), nunca sobre la de la app.
  */
 @RunWith(AndroidJUnit4::class)
@@ -32,7 +33,7 @@ class AppDatabaseMigrationTest {
     )
 
     @Test
-    fun migrate1To2_keepsBooksAndAddsHighlights() = runBlocking {
+    fun migrate1To3_keepsBooksAndAddsHighlights() = runBlocking {
         helper.createDatabase(1).use { db ->
             db.execSQL(
                 "INSERT INTO books (created_at, file_name, title, author, media_type, progression) " +
@@ -40,7 +41,7 @@ class AppDatabaseMigrationTest {
             )
         }
 
-        helper.runMigrationsAndValidate(2).use { db ->
+        helper.runMigrationsAndValidate(3).use { db ->
             db.prepare("SELECT title, progression FROM books").use { row ->
                 assertTrue(row.step())
                 assertEquals("Rayuela", row.getText(0))
@@ -58,6 +59,36 @@ class AppDatabaseMigrationTest {
             assertEquals(1L, db.count("highlights"))
             db.execSQL("DELETE FROM books WHERE id = 1")
             assertEquals(0L, db.count("highlights"))
+        }
+    }
+
+    @Test
+    fun migrate2To3_keepsHighlightsAndAddsEmptyNote() = runBlocking {
+        helper.createDatabase(2).use { db ->
+            db.execSQL(
+                "INSERT INTO books (created_at, file_name, title, media_type) " +
+                    "VALUES (1, 'rayuela.epub', 'Rayuela', 'application/epub+zip')",
+            )
+            db.execSQL(
+                "INSERT INTO highlights (book_id, created_at, href, locator, text, color, total_progression) " +
+                    "VALUES (1, 2, '/c1.xhtml', '{\"href\":\"/c1.xhtml\"}', 'Un pasaje', 7, 0.5)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(3).use { db ->
+            db.prepare("SELECT text, color, locator, note FROM highlights").use { row ->
+                assertTrue(row.step())
+                assertEquals("Un pasaje", row.getText(0))
+                assertEquals(7L, row.getLong(1))
+                assertEquals("{\"href\":\"/c1.xhtml\"}", row.getText(2))
+                assertTrue(row.isNull(3))
+                assertFalse(row.step())
+            }
+            db.execSQL("UPDATE highlights SET note = 'Me recuerda a Lugano' WHERE id = 1")
+            db.prepare("SELECT note FROM highlights WHERE id = 1").use { row ->
+                assertTrue(row.step())
+                assertEquals("Me recuerda a Lugano", row.getText(0))
+            }
         }
     }
 

@@ -120,10 +120,7 @@ class ReaderFragment : Fragment() {
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
             when (item.itemId) {
-                MENU_HIGHLIGHT -> withSelection { selection ->
-                    viewModel.addHighlight(selection)
-                    Toast.makeText(requireContext(), R.string.highlight_saved, Toast.LENGTH_SHORT).show()
-                }
+                MENU_HIGHLIGHT -> withSelection { selection -> viewModel.addHighlight(selection) }
                 MENU_READ_FROM_HERE -> withSelection { selection -> readFromSelection(selection) }
                 MENU_COPY -> withSelection { selection -> copyToClipboard(selection.locator.text.highlight.orEmpty()) }
                 MENU_SHARE -> withSelection { selection -> shareText(selection.locator.text.highlight.orEmpty()) }

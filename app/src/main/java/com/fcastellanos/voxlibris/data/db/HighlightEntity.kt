@@ -29,4 +29,6 @@ data class HighlightEntity(
     val text: String,
     val color: Int,
     @ColumnInfo(name = "total_progression") val totalProgression: Double?,
+    /** Nota personal del usuario sobre el pasaje; vacía se guarda como nula. */
+    val note: String? = null,
 )

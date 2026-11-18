@@ -14,6 +14,9 @@ interface HighlightDao {
     @Insert
     suspend fun insert(highlight: HighlightEntity): Long
 
+    @Query("UPDATE highlights SET note = :note WHERE id = :id")
+    suspend fun updateNote(id: Long, note: String?)
+
     @Query("DELETE FROM highlights WHERE id = :id")
     suspend fun delete(id: Long)
 }
