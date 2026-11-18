@@ -7,7 +7,6 @@ import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.view.ActionMode
 import android.view.LayoutInflater
@@ -18,6 +17,8 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -31,6 +32,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.VoxLibrisApp
@@ -40,6 +42,7 @@ import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -51,7 +54,6 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.html.HtmlDecorationTemplates
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
-import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.navigator.util.BaseActionModeCallback
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -207,9 +209,19 @@ class ReaderFragment : Fragment() {
             listener = viewModel,
             configuration = EpubNavigatorFragment.Configuration {
                 selectionActionModeCallback = selectionActionMode
-                decorationTemplates = HtmlDecorationTemplates.defaultTemplates().apply {
+                // Resaltados opacos y detrás del texto: los colores (`reading-highlight`, `reading-now`)
+                // ya vienen elegidos para cada fondo de lectura. Sin la posición experimental, Readium
+                // los dibuja encima del texto y con opacidad completa lo taparían.
+                decorationTemplates = HtmlDecorationTemplates.defaultTemplates(
+                    DEFAULT_DECORATION_TINT,
+                    DECORATION_LINE_WEIGHT,
+                    DECORATION_CORNER_RADIUS,
+                    DECORATION_ALPHA,
+                    DECORATIONS_BEHIND_TEXT,
+                ).apply {
                     set(NoteMarkStyle::class, NoteMarkDecoration.template())
                 }
+                ReaderFonts.register(this)
             },
         )
         super.onCreate(savedInstanceState)
@@ -229,7 +241,9 @@ class ReaderFragment : Fragment() {
         val overlay = ComposeView(context).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                VoxLibrisTheme {
+                // La interfaz del lector sigue al fondo de lectura: con el fondo Oscuro usa el tema oscuro.
+                val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+                VoxLibrisTheme(darkTheme = preferences.paper().isDark) {
                     ReaderOverlay(viewModel = viewModel, onBack = { requireActivity().finish() }, onListen = ::onListen)
                 }
             }
@@ -268,8 +282,10 @@ class ReaderFragment : Fragment() {
                 launch { navigator.currentLocator.collect { viewModel.onLocatorChanged(it) } }
                 launch {
                     viewModel.preferences.collect { prefs ->
-                        navigator.submitPreferences(prefs)
-                        navigatorContainer?.setBackgroundColor(backgroundFor(prefs.theme))
+                        val paper = prefs.paper()
+                        navigator.submitPreferences(prefs.withPaper(paper))
+                        navigatorContainer?.setBackgroundColor(paper.background.toArgb())
+                        setSystemBarsAppearance(paper)
                     }
                 }
                 launch {
@@ -280,17 +296,23 @@ class ReaderFragment : Fragment() {
                         }
                     }
                 }
-                launch { viewModel.highlightDecorations.collect { navigator.applyDecorations(it, ReaderViewModel.HIGHLIGHTS_GROUP) } }
+                val paper = viewModel.preferences.map { it.paper() }.distinctUntilChanged()
+                launch {
+                    combine(viewModel.highlightDecorations, paper) { decorations, current -> decorations.withPaperColors(current) }
+                        .collect { navigator.applyDecorations(it, ReaderViewModel.HIGHLIGHTS_GROUP) }
+                }
                 launch { viewModel.externalLinks.collect { openExternal(it) } }
                 launch { viewModel.overlayVisible.collect { setSystemBarsVisible(it) } }
                 val readAloud = viewModel.readAloud
                 val bookId = bookId
                 launch {
-                    combine(readAloud.activeBookId, readAloud.highlight) { activeId, locator ->
-                        if (activeId == bookId) locator else null
-                    }.distinctUntilChanged().collect { locator ->
-                        val decorations = locator?.let {
-                            listOf(Decoration(id = TTS_DECORATION_ID, locator = it, style = Decoration.Style.Highlight(tint = TTS_HIGHLIGHT_TINT, isActive = true)))
+                    combine(readAloud.activeBookId, readAloud.highlight, paper) { activeId, locator, current ->
+                        if (activeId == bookId && locator != null) locator to current else null
+                    }.distinctUntilChanged().collect { spoken ->
+                        // La frase que suena va en `reading-now`, el mismo color en todas las pantallas.
+                        val decorations = spoken?.let { (locator, current) ->
+                            val tint = current.colors.readingNow.toArgb()
+                            listOf(Decoration(id = TTS_DECORATION_ID, locator = locator, style = Decoration.Style.Highlight(tint = tint, isActive = true)))
                         } ?: emptyList()
                         navigator.applyDecorations(decorations, TTS_DECORATION_GROUP)
                     }
@@ -313,10 +335,12 @@ class ReaderFragment : Fragment() {
         super.onDestroyView()
     }
 
-    private fun backgroundFor(theme: Theme?): Int = when (theme) {
-        Theme.DARK -> Color.BLACK
-        Theme.SEPIA -> SEPIA_BACKGROUND
-        else -> Color.WHITE
+    /** Íconos oscuros sobre los fondos claros de lectura y claros sobre el oscuro. */
+    private fun setSystemBarsAppearance(paper: ReaderPaper) {
+        val window = activity?.window ?: return
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.isAppearanceLightStatusBars = !paper.isDark
+        controller.isAppearanceLightNavigationBars = !paper.isDark
     }
 
     private fun setSystemBarsVisible(visible: Boolean) {
@@ -347,10 +371,13 @@ class ReaderFragment : Fragment() {
         private const val MENU_SHARE = 3
         private const val NAVIGATOR_TAG = "navigator"
         private const val ARG_BOOK_ID = "book_id"
-        private const val SEPIA_BACKGROUND = 0xFFFAF4E8.toInt()
         private const val TTS_DECORATION_GROUP = "tts"
         private const val TTS_DECORATION_ID = "tts-utterance"
-        private const val TTS_HIGHLIGHT_TINT = 0x66FFC107
+        private const val DEFAULT_DECORATION_TINT = 0xFFFFFF00.toInt()
+        private const val DECORATION_LINE_WEIGHT = 2
+        private const val DECORATION_CORNER_RADIUS = 3
+        private const val DECORATION_ALPHA = 1.0
+        private const val DECORATIONS_BEHIND_TEXT = true
         private const val PAGE_SYNC_MS = 800L
 
         fun arguments(bookId: Long): Bundle = Bundle().apply { putLong(ARG_BOOK_ID, bookId) }

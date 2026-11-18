@@ -25,6 +25,25 @@ class VoxColorsContrastTest {
     }
 
     @Test
+    fun noteMarkIsVisibleOnEveryReadingBackground() {
+        // Un ícono que lleva significado pide 3:1. En claro se lee sobre Cálido (page), Blanco
+        // (surface) y el resaltado; en oscuro, sobre page y el resaltado.
+        val light = LightVoxColors
+        val dark = DarkVoxColors
+        val pairs = listOf(
+            "claro, page" to (light.noteMark to light.page),
+            "claro, blanco" to (light.noteMark to light.surface),
+            "claro, resaltado" to (light.noteMark to light.readingHighlight),
+            "oscuro, page" to (dark.noteMark to dark.page),
+            "oscuro, resaltado" to (dark.noteMark to dark.readingHighlight),
+        )
+        for ((name, pair) in pairs) {
+            val r = ratio(pair.first, pair.second)
+            assertTrue("note-mark, $name: contraste %.2f:1, menor que 3:1".format(r), r >= 3.0)
+        }
+    }
+
+    @Test
     fun textPairsAreReadableInBothThemes() {
         for ((theme, c) in listOf("claro" to LightVoxColors, "oscuro" to DarkVoxColors)) {
             val grounds = mapOf("ground" to c.ground, "surface" to c.surface, "surface-muted" to c.surfaceMuted, "page" to c.page)
@@ -38,6 +57,8 @@ class VoxColorsContrastTest {
             assertReadable(theme, "on-danger sobre danger", c.onDanger, c.danger)
             assertReadable(theme, "danger sobre surface", c.danger, c.surface)
             assertReadable(theme, "ink sobre accent-soft", c.ink, c.accentSoft)
+            assertReadable(theme, "ink sobre reading-now", c.ink, c.readingNow)
+            assertReadable(theme, "ink sobre reading-highlight", c.ink, c.readingHighlight)
             val brightFills = mapOf(
                 "tomato" to c.tomato, "tomato-track" to c.tomatoTrack, "mustard" to c.mustard, "butter" to c.butter,
                 "mint" to c.mint, "mint-deep" to c.mintDeep, "pink" to c.pink, "violet-light" to c.violetLight,

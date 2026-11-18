@@ -14,6 +14,9 @@
     <color name="vx_focus">#FF17151F</color>
     <color name="vx_scrim">#8C17151F</color>
     <color name="vx_page">#FFFFF3EE</color>
+    <color name="vx_reading_now">#FFFFC83D</color>
+    <color name="vx_reading_highlight">#FFB2ECD9</color>
+    <color name="vx_note_mark">#FF178A64</color>
     <color name="vx_accent">#FF6D4AFF</color>
     <color name="vx_on_accent">#FFFFFFFF</color>
     <color name="vx_accent_soft">#FFDCD3FF</color>

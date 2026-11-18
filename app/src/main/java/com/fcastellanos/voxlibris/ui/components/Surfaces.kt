@@ -8,12 +8,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -26,6 +30,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.ui.theme.VoxDimens
@@ -60,7 +66,11 @@ fun VoxBottomSheet(onDismissRequest: () -> Unit, content: @Composable ColumnScop
     }
 }
 
-/** Elemento de menú (`vx-menu__item`): 48 dp, ícono opcional y texto `label`. [danger] va al final, separado. */
+/**
+ * Elemento de menú (`vx-menu__item`): 48 dp, ícono opcional y texto `label`. [danger] va al final,
+ * separado. Con [checked] distinto de nulo es una opción elegible: la elegida lleva fondo
+ * `surface-muted` y una tilde.
+ */
 @Composable
 fun VoxMenuItem(
     text: String,
@@ -68,22 +78,114 @@ fun VoxMenuItem(
     modifier: Modifier = Modifier,
     @DrawableRes icon: Int? = null,
     danger: Boolean = false,
+    checked: Boolean? = null,
 ) {
     val c = VoxLibrisTheme.colors
     val color = if (danger) c.danger else c.ink
+    val interaction = if (checked != null) {
+        Modifier.selectable(selected = checked, role = Role.RadioButton, onClick = onClick)
+    } else {
+        Modifier.clickable(role = Role.Button, onClick = onClick)
+    }
     Row(
         modifier
             .fillMaxWidth()
             .heightIn(min = VoxDimens.sizeTouch)
             .clip(RoundedCornerShape(VoxDimens.radiusM))
-            .clickable(role = Role.Button, onClick = onClick)
+            .then(if (checked == true) Modifier.background(c.surfaceMuted) else Modifier)
+            .then(interaction)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(VoxDimens.space3),
     ) {
         if (icon != null) Icon(painterResource(icon), contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-        Text(text, style = VoxLibrisTheme.typography.label, color = color)
+        Text(text, style = VoxLibrisTheme.typography.label, color = color, modifier = Modifier.weight(1f))
+        if (checked == true) Icon(painterResource(R.drawable.ic_vx_check), contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
     }
+}
+
+/** Menú desplegable del sistema (`vx-menu`): sale del control que lo abre, en `surface` con `shadow-float`. */
+@Composable
+fun VoxDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier.widthIn(min = 200.dp).padding(horizontal = VoxDimens.space2),
+        shape = RoundedCornerShape(VoxDimens.radiusXl),
+        containerColor = VoxLibrisTheme.colors.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 12.dp,
+    ) {
+        if (label != null) SectionLabel(label, Modifier.padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 6.dp))
+        content()
+    }
+}
+
+/** Cabecera de una hoja inferior (`vx-sheet__head`): título en `display-l` y una etiqueta opcional. */
+@Composable
+fun SheetHeader(title: String, modifier: Modifier = Modifier, tag: String? = null) {
+    Row(
+        modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(VoxDimens.space3),
+    ) {
+        Text(
+            title,
+            style = VoxLibrisTheme.typography.displayL,
+            color = VoxLibrisTheme.colors.ink,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        if (tag != null) Tag(tag)
+    }
+}
+
+/** Etiqueta chica de contexto (`vx-tag`). */
+@Composable
+fun Tag(text: String, modifier: Modifier = Modifier) {
+    val c = VoxLibrisTheme.colors
+    Box(
+        modifier
+            .heightIn(min = 28.dp)
+            .clip(RoundedCornerShape(VoxDimens.radiusPill))
+            .background(c.surfaceMuted)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = VoxLibrisTheme.typography.caption, color = c.ink, maxLines = 1)
+    }
+}
+
+/**
+ * Diálogo del sistema (`vx-dialog`) con contenido libre: título en `display-l`, el contenido y una
+ * fila de botones [VoxButton] chicos alineados a la derecha. Para confirmar algo destructivo,
+ * [VoxConfirmDialog].
+ */
+@Composable
+fun VoxDialog(
+    title: String,
+    onDismissRequest: () -> Unit,
+    actions: @Composable RowScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val c = VoxLibrisTheme.colors
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(VoxDimens.space2), verticalAlignment = Alignment.CenterVertically, content = actions)
+        },
+        title = { Text(title, style = VoxLibrisTheme.typography.displayL) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space3), content = content) },
+        shape = RoundedCornerShape(VoxDimens.radius2xl),
+        containerColor = c.surface,
+        titleContentColor = c.ink,
+        textContentColor = c.ink,
+    )
 }
 
 /** Separador de menú (`vx-menu__sep`). */

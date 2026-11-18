@@ -87,3 +87,78 @@ private fun ComponentsSample(darkTheme: Boolean) {
         }
     }
 }
+
+@Preview(name = "Componentes del lector · claro", widthDp = 390, heightDp = 900)
+@Composable
+private fun ReaderComponentsLightPreview() = ReaderComponentsSample(darkTheme = false)
+
+@Preview(name = "Componentes del lector · oscuro", widthDp = 390, heightDp = 900)
+@Composable
+private fun ReaderComponentsDarkPreview() = ReaderComponentsSample(darkTheme = true)
+
+@Composable
+private fun ReaderComponentsSample(darkTheme: Boolean) {
+    VoxLibrisTheme(darkTheme = darkTheme) {
+        Column(
+            Modifier.background(VoxLibrisTheme.colors.ground).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ProgressRing(0.12f, "12 % leído")
+                SheetHeader("Contenido", tag = "52 capítulos")
+            }
+            VoxTabs(listOf("Capítulos", "Resaltados · 3"), selectedIndex = 1, onSelect = {})
+            VoxChipGroup {
+                VoxChip("Apagado", selected = false, onClick = {})
+                VoxChip("30 min", selected = true, onClick = {})
+                VoxChip("45 min", selected = false, onClick = {})
+            }
+            VoxSlider(value = 0.4f, onValueChange = {}, valueRange = 0f..1f)
+            SettingsList(onGround = true) {
+                SettingsSwitchRow("Desplazamiento continuo", checked = true, onCheckedChange = {}, subtitle = "Deslizás el texto en lugar de pasar páginas")
+            }
+            VoxTextField(value = "", onValueChange = {}, label = "Tu nota", placeholder = "Escribí una nota", minLines = 2)
+            StatusPill("Leyendo en voz alta · Se detiene en 8 min")
+            PlayerPill(
+                label = "Lectura en voz alta",
+                voiceName = "Lucía",
+                voiceId = 0,
+                voiceDescription = "Cambiar lector, ahora Lucía",
+                speedText = "1,7×",
+                speedDescription = "Velocidad 1,7×",
+                playing = true,
+                playDescription = "Pausar",
+                previousDescription = "Frase anterior",
+                nextDescription = "Frase siguiente",
+                onVoice = {},
+                onPrevious = {},
+                onPlayPause = {},
+                onNext = {},
+                onSpeed = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "StepCard · claro", widthDp = 390, heightDp = 420)
+@Composable
+private fun StepCardLightPreview() = StepCardSample(darkTheme = false)
+
+@Preview(name = "StepCard · oscuro", widthDp = 390, heightDp = 420)
+@Composable
+private fun StepCardDarkPreview() = StepCardSample(darkTheme = true)
+
+@Composable
+private fun StepCardSample(darkTheme: Boolean) {
+    VoxLibrisTheme(darkTheme = darkTheme) {
+        Column(
+            Modifier.background(VoxLibrisTheme.colors.ground).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            StepCard(1, "Lectura con la pantalla apagada", body = "", doneLabel = "Listo: sin restricciones de batería")
+            StepCard(2, "Voces en el teléfono", body = "Las voces se descargan una sola vez (122 MB) y después todo funciona sin conexión.") {
+                VoxButton("Descargar voces", onClick = {})
+            }
+        }
+    }
+}

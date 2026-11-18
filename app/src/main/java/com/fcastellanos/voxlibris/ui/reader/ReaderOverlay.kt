@@ -1,57 +1,41 @@
 package com.fcastellanos.voxlibris.ui.reader
 
+import android.text.format.DateUtils
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,58 +43,103 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily as ComposeFontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import android.text.format.DateUtils
 import com.fcastellanos.voxlibris.R
+import com.fcastellanos.voxlibris.VoxLibrisApp
 import com.fcastellanos.voxlibris.data.Highlight
 import com.fcastellanos.voxlibris.dictionary.DictionaryEntry
 import com.fcastellanos.voxlibris.dictionary.DictionarySense
 import com.fcastellanos.voxlibris.dictionary.FormOf
 import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
-import com.fcastellanos.voxlibris.VoxLibrisApp
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.tts.SupertonicModel
 import com.fcastellanos.voxlibris.tts.VoiceModelManager
 import com.fcastellanos.voxlibris.tts.resolve
+import com.fcastellanos.voxlibris.ui.components.Banner
+import com.fcastellanos.voxlibris.ui.components.DictionaryCard
+import com.fcastellanos.voxlibris.ui.components.OptionCard
+import com.fcastellanos.voxlibris.ui.components.PlayButton
+import com.fcastellanos.voxlibris.ui.components.PlayerPill
+import com.fcastellanos.voxlibris.ui.components.ProgressRing
+import com.fcastellanos.voxlibris.ui.components.SectionLabel
+import com.fcastellanos.voxlibris.ui.components.SettingsDivider
+import com.fcastellanos.voxlibris.ui.components.SettingsList
+import com.fcastellanos.voxlibris.ui.components.SettingsSwitchRow
+import com.fcastellanos.voxlibris.ui.components.SheetHeader
+import com.fcastellanos.voxlibris.ui.components.StatusPill
+import com.fcastellanos.voxlibris.ui.components.StrongPill
+import com.fcastellanos.voxlibris.ui.components.VoxBottomSheet
+import com.fcastellanos.voxlibris.ui.components.VoxButton
+import com.fcastellanos.voxlibris.ui.components.VoxButtonSize
+import com.fcastellanos.voxlibris.ui.components.VoxButtonVariant
+import com.fcastellanos.voxlibris.ui.components.VoxChip
+import com.fcastellanos.voxlibris.ui.components.VoxChipGroup
+import com.fcastellanos.voxlibris.ui.components.VoxConfirmDialog
+import com.fcastellanos.voxlibris.ui.components.VoxDialog
+import com.fcastellanos.voxlibris.ui.components.VoxDropdownMenu
+import com.fcastellanos.voxlibris.ui.components.VoxIconButton
+import com.fcastellanos.voxlibris.ui.components.VoxIconButtonVariant
+import com.fcastellanos.voxlibris.ui.components.VoxMenuItem
+import com.fcastellanos.voxlibris.ui.components.VoxSlider
+import com.fcastellanos.voxlibris.ui.components.VoxTabs
+import com.fcastellanos.voxlibris.ui.components.VoxTextField
+import com.fcastellanos.voxlibris.ui.components.VoxTextIconButton
+import com.fcastellanos.voxlibris.ui.components.formatSpeed
+import com.fcastellanos.voxlibris.ui.components.voxShadow
+import com.fcastellanos.voxlibris.ui.theme.VoxDimens
+import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 import com.fcastellanos.voxlibris.ui.voices.VoiceSettingsContent
 import com.fcastellanos.voxlibris.ui.voices.VoicesViewModel
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.EpubPreferencesEditor
-import org.readium.r2.navigator.preferences.Theme
-import org.readium.r2.navigator.preferences.toggle
+import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 
 private val SLEEP_TIMER_OPTIONS = listOf(10, 20, 30, 45, 60)
+private val SPEED_PRESETS = listOf(0.8, 1.0, 1.2, 1.5, 1.7, 2.0)
+private val LINE_HEIGHTS = listOf(R.string.reader_line_compact to 1.2, R.string.reader_line_normal to 1.5, R.string.reader_line_wide to 1.8)
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalReadiumApi::class)
+/**
+ * Interfaz del lector según la pantalla «Texto completo» del lienzo de diseño: barra superior con el
+ * avance, la barra de lectura o el reproductor flotante abajo, y las hojas de Contenido, Apariencia,
+ * Lectores y Temporizador. Los colores salen del tema que el fragmento elige según el fondo de lectura.
+ */
+@OptIn(ExperimentalReadiumApi::class)
 @Composable
 fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -> Unit) {
     val visible by viewModel.overlayVisible.collectAsStateWithLifecycle()
     val locator by viewModel.currentLocator.collectAsStateWithLifecycle()
     val positions by viewModel.positions.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
-    var showToc by rememberSaveable { mutableStateOf(false) }
-    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showContents by rememberSaveable { mutableStateOf(false) }
+    var showAppearance by rememberSaveable { mutableStateOf(false) }
     var showVoices by rememberSaveable { mutableStateOf(false) }
-    var showHighlights by rememberSaveable { mutableStateOf(false) }
+    var showTimer by rememberSaveable { mutableStateOf(false) }
     val highlights by viewModel.highlights.collectAsStateWithLifecycle()
     val tappedHighlight by viewModel.tappedHighlight.collectAsStateWithLifecycle()
     val noteEditor by viewModel.noteEditor.collectAsStateWithLifecycle()
@@ -126,6 +155,13 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
     val ttsSettings = ttsPreferences.resolve(null)
     val sleepEndsAt by readAloud.sleepTimerEndsAt.collectAsStateWithLifecycle()
 
+    val container = (LocalContext.current.applicationContext as VoxLibrisApp).container
+    val sample = stringResource(R.string.sample_sentence)
+    val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample))
+
+    val paper = preferences.paper()
+    val percent = locator?.locations?.totalProgression?.let { (it * 100).roundToInt().coerceIn(0, 100) }
+
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = visible,
@@ -133,30 +169,13 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
             enter = fadeIn() + slideInVertically { -it },
             exit = fadeOut() + slideOutVertically { -it },
         ) {
-            TopAppBar(
-                modifier = Modifier.consumeTaps(),
-                title = { Text(viewModel.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.back))
-                    }
-                },
-                actions = {
-                    if (ttsStatus == ReadAloudManager.Status.Idle) {
-                        IconButton(onClick = onListen) {
-                            Icon(painterResource(R.drawable.ic_headphones), contentDescription = stringResource(R.string.listen))
-                        }
-                    }
-                    IconButton(onClick = { showHighlights = true }) {
-                        Icon(painterResource(R.drawable.ic_bookmark), contentDescription = stringResource(R.string.highlights_title))
-                    }
-                    IconButton(onClick = { showToc = true }) {
-                        Icon(painterResource(R.drawable.ic_toc), contentDescription = stringResource(R.string.toc))
-                    }
-                    IconButton(onClick = { showSettings = true }) {
-                        Icon(painterResource(R.drawable.ic_text_size), contentDescription = stringResource(R.string.reading_settings))
-                    }
-                },
+            ReaderTopBar(
+                title = viewModel.title,
+                percent = percent,
+                background = paper.background,
+                onBack = onBack,
+                onContents = { showContents = true },
+                onAppearance = { showAppearance = true },
             )
         }
         AnimatedVisibility(
@@ -165,29 +184,55 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
         ) {
-            if (ttsStatus == ReadAloudManager.Status.Idle) {
-                ProgressBar(locator = locator, positions = positions, onSeek = viewModel::goToPosition)
-            } else {
-                TtsBar(
-                    status = ttsStatus,
-                    modelState = modelState,
-                    voiceName = SupertonicModel.voice(ttsSettings.voiceId).name,
-                    speed = ttsSettings.speed,
-                    sleepEndsAt = sleepEndsAt,
-                    onPlayPause = readAloud::togglePlayPause,
-                    onPrevious = { readAloud.previous() },
-                    onNext = { readAloud.next() },
-                    onStop = readAloud::stop,
-                    onVoices = { showVoices = true },
-                    onSleepTimer = readAloud::setSleepTimer,
-                )
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .consumeTaps()
+                    .navigationBarsPadding()
+                    .padding(start = VoxDimens.space4, end = VoxDimens.space4, top = VoxDimens.space2, bottom = VoxDimens.space4),
+                verticalArrangement = Arrangement.spacedBy(VoxDimens.space2),
+            ) {
+                val downloading = ttsStatus == ReadAloudManager.Status.NeedsModel &&
+                    (modelState is VoiceModelManager.State.Downloading || modelState is VoiceModelManager.State.Installing)
+                when {
+                    ttsStatus == ReadAloudManager.Status.Idle ->
+                        ReadingBar(locator = locator, positions = positions, percent = percent, onSeek = viewModel::goToPosition, onListen = onListen)
+                    downloading -> {
+                        val progress = (modelState as? VoiceModelManager.State.Downloading)?.progress
+                        Banner(
+                            title = if (progress != null) {
+                                stringResource(R.string.downloading_voices, (progress * 100).toInt())
+                            } else {
+                                stringResource(R.string.installing_voices)
+                            },
+                            progress = progress,
+                            modifier = Modifier.voxShadow(VoxLibrisTheme.shadows.shadowFloat, RoundedCornerShape(VoxDimens.radiusXl)),
+                        )
+                    }
+                    else -> ListeningControls(
+                        status = ttsStatus,
+                        voiceId = ttsSettings.voiceId,
+                        speed = ttsSettings.speed,
+                        sleepEndsAt = sleepEndsAt,
+                        onPlayPause = readAloud::togglePlayPause,
+                        onPrevious = { readAloud.previous() },
+                        onNext = { readAloud.next() },
+                        onStop = readAloud::stop,
+                        onVoices = { showVoices = true },
+                        onTimer = { showTimer = true },
+                        onSpeed = voicesViewModel::setSpeed,
+                    )
+                }
             }
         }
         definition?.let { state ->
             DefinitionCard(
                 state = state,
                 onDismiss = viewModel::dismissDefinition,
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(VoxDimens.space4),
             )
         }
     }
@@ -195,77 +240,68 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
     if (ttsStatus == ReadAloudManager.Status.NeedsModel &&
         modelState !is VoiceModelManager.State.Downloading && modelState !is VoiceModelManager.State.Installing
     ) {
-        AlertDialog(
-            onDismissRequest = readAloud::stop,
-            title = { Text(stringResource(R.string.tts_need_model_title)) },
-            text = { Text(stringResource(R.string.tts_need_model_body, SupertonicModel.SIZE_MB)) },
-            confirmButton = { TextButton(onClick = readAloud::downloadVoices) { Text(stringResource(R.string.download)) } },
-            dismissButton = { TextButton(onClick = readAloud::stop) { Text(stringResource(R.string.cancel)) } },
+        VoxConfirmDialog(
+            title = stringResource(R.string.tts_need_model_title),
+            body = stringResource(R.string.tts_need_model_body, SupertonicModel.SIZE_MB),
+            confirmLabel = stringResource(R.string.download),
+            onConfirm = readAloud::downloadVoices,
+            onDismiss = readAloud::stop,
+            destructive = false,
         )
     }
-    if (showToc) {
-        TocSheet(
+    if (showContents) {
+        ContentsSheet(
             entries = viewModel.toc,
             current = locator,
+            highlights = highlights,
             onSelect = { link ->
                 viewModel.go(link)
-                showToc = false
+                showContents = false
             },
-            onDismiss = { showToc = false },
-        )
-    }
-    if (showSettings) {
-        SettingsSheet(
-            preferences = preferences,
-            createEditor = viewModel::createPreferencesEditor,
-            onChange = viewModel::updatePreferences,
-            onDismiss = { showSettings = false },
-        )
-    }
-    if (showHighlights) {
-        HighlightsSheet(
-            highlights = highlights,
-            onGo = { highlight ->
+            onGoToHighlight = { highlight ->
                 viewModel.goToHighlight(highlight)
-                showHighlights = false
+                showContents = false
             },
             onEditNote = { highlight ->
                 viewModel.editNote(highlight)
-                showHighlights = false
+                showContents = false
             },
-            onDelete = viewModel::deleteHighlight,
-            onDismiss = { showHighlights = false },
+            onDeleteHighlight = viewModel::deleteHighlight,
+            onDismiss = { showContents = false },
         )
     }
+    if (showAppearance) {
+        AppearanceSheet(
+            preferences = preferences,
+            createEditor = viewModel::createPreferencesEditor,
+            onChange = viewModel::updatePreferences,
+            onDismiss = { showAppearance = false },
+        )
+    }
+    if (showTimer) {
+        SleepTimerSheet(
+            sleepEndsAt = sleepEndsAt,
+            onSelect = readAloud::setSleepTimer,
+            onDismiss = { showTimer = false },
+        )
+    }
+    if (showVoices) {
+        VoxBottomSheet(onDismissRequest = { showVoices = false }) {
+            SheetHeader(stringResource(R.string.voices_who), tag = stringResource(R.string.voices_tag))
+            VoiceSettingsContent(viewModel = voicesViewModel, modifier = Modifier.weight(1f, fill = false))
+            VoxButton(
+                stringResource(R.string.reader_done),
+                onClick = { showVoices = false },
+                size = VoxButtonSize.Block,
+            )
+        }
+    }
     tappedHighlight?.let { highlight ->
-        AlertDialog(
-            onDismissRequest = viewModel::dismissTappedHighlight,
-            title = { Text(stringResource(R.string.highlight_dialog_title)) },
-            text = {
-                Column {
-                    Text("“${highlight.text}”", maxLines = 6, overflow = TextOverflow.Ellipsis)
-                    highlight.note?.let { note ->
-                        Text(
-                            text = note,
-                            fontStyle = FontStyle.Italic,
-                            maxLines = 6,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Row {
-                    TextButton(onClick = { viewModel.deleteHighlight(highlight.id) }) { Text(stringResource(R.string.delete)) }
-                    TextButton(onClick = { viewModel.editNote(highlight) }) {
-                        Text(stringResource(if (highlight.note == null) R.string.add_note else R.string.edit_note))
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissTappedHighlight) { Text(stringResource(R.string.close)) }
-            },
+        HighlightDialog(
+            highlight = highlight,
+            onEditNote = { viewModel.editNote(highlight) },
+            onDelete = { viewModel.deleteHighlight(highlight.id) },
+            onDismiss = viewModel::dismissTappedHighlight,
         )
     }
     noteEditor?.let { editor ->
@@ -274,14 +310,6 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
             onSave = { note -> viewModel.saveNote(editor.highlightId, note) },
             onDismiss = viewModel::dismissNoteEditor,
         )
-    }
-    if (showVoices) {
-        val container = (LocalContext.current.applicationContext as VoxLibrisApp).container
-        val sample = stringResource(R.string.sample_sentence)
-        val voicesViewModel: VoicesViewModel = viewModel(factory = VoicesViewModel.factory(container, sample))
-        ModalBottomSheet(onDismissRequest = { showVoices = false }) {
-            VoiceSettingsContent(viewModel = voicesViewModel, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp))
-        }
     }
 }
 
@@ -292,11 +320,91 @@ private fun Modifier.consumeTaps(): Modifier = this.clickable(
     onClick = {},
 )
 
+/** Barra superior del texto completo: volver, el avance del libro con su anillo, Contenido y Apariencia. */
 @Composable
-private fun TtsBar(
+private fun ReaderTopBar(
+    title: String,
+    percent: Int?,
+    background: Color,
+    onBack: () -> Unit,
+    onContents: () -> Unit,
+    onAppearance: () -> Unit,
+) {
+    val c = VoxLibrisTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .consumeTaps()
+            .background(background)
+            .statusBarsPadding()
+            .padding(horizontal = VoxDimens.space4, vertical = VoxDimens.space2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(VoxDimens.space2),
+    ) {
+        VoxIconButton(R.drawable.ic_vx_back, stringResource(R.string.back), onBack)
+        Row(
+            Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(VoxDimens.space2, Alignment.CenterHorizontally),
+        ) {
+            if (percent != null) ProgressRing(percent / 100f, stringResource(R.string.vx_read_percent, percent))
+            Text(
+                title,
+                style = VoxLibrisTheme.typography.label,
+                color = c.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (percent != null) {
+                Text(stringResource(R.string.reader_title_percent, percent), style = VoxLibrisTheme.typography.label, color = c.ink, maxLines = 1)
+            }
+        }
+        VoxIconButton(R.drawable.ic_vx_list, stringResource(R.string.reader_contents), onContents)
+        VoxIconButton(R.drawable.ic_vx_text_size, stringResource(R.string.reader_appearance), onAppearance)
+    }
+}
+
+/** Barra de lectura cuando no suena nada: escuchar desde acá y saltar a otra posición del libro. */
+@Composable
+private fun ReadingBar(locator: Locator?, positions: List<Locator>, percent: Int?, onSeek: (Int) -> Unit, onListen: () -> Unit) {
+    val c = VoxLibrisTheme.colors
+    val currentIndex = ((locator?.locations?.position ?: 1) - 1).coerceAtLeast(0)
+    var sliderValue by remember(currentIndex) { mutableFloatStateOf(currentIndex.toFloat()) }
+    val position = if (positions.isNotEmpty()) {
+        stringResource(R.string.position_of, sliderValue.roundToInt() + 1, positions.size)
+    } else {
+        stringResource(R.string.reading_position)
+    }
+    StrongPill(label = stringResource(R.string.reader_reading_bar)) {
+        PlayButton(playing = false, onClick = onListen, contentDescription = stringResource(R.string.listen))
+        Column(Modifier.weight(1f).padding(start = VoxDimens.space3, end = VoxDimens.space2)) {
+            if (positions.size > 1) {
+                VoxSlider(
+                    value = sliderValue,
+                    onValueChange = { sliderValue = it },
+                    onValueChangeFinished = { onSeek(sliderValue.roundToInt()) },
+                    valueRange = 0f..(positions.size - 1).toFloat(),
+                    onStrong = true,
+                    stateDescription = position,
+                    modifier = Modifier.height(32.dp),
+                )
+            }
+            Text(
+                if (percent != null) stringResource(R.string.reader_position_percent, position, percent) else position,
+                style = VoxLibrisTheme.typography.caption,
+                color = c.onFillStrong,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/** El reproductor flotante y, arriba, el estado de la voz con el temporizador y el botón para dejar de escuchar. */
+@Composable
+private fun ListeningControls(
     status: ReadAloudManager.Status,
-    modelState: VoiceModelManager.State,
-    voiceName: String,
+    voiceId: Int,
     speed: Double,
     sleepEndsAt: Long?,
     onPlayPause: () -> Unit,
@@ -304,76 +412,67 @@ private fun TtsBar(
     onNext: () -> Unit,
     onStop: () -> Unit,
     onVoices: () -> Unit,
-    onSleepTimer: (Int?) -> Unit,
+    onTimer: () -> Unit,
+    onSpeed: (Double) -> Unit,
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .consumeTaps(),
-        tonalElevation = 3.dp,
-    ) {
-        Column(
-            Modifier
-                .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-        ) {
-            val downloading = status == ReadAloudManager.Status.NeedsModel &&
-                (modelState is VoiceModelManager.State.Downloading || modelState is VoiceModelManager.State.Installing)
-            if (downloading) {
-                val progress = (modelState as? VoiceModelManager.State.Downloading)?.progress
-                if (progress != null) {
-                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.downloading_voices, (progress * 100).toInt()), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                } else {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.installing_voices), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                }
-                return@Column
-            }
-            val locale = LocalConfiguration.current.locales[0]
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                IconButton(onClick = onStop) { Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.stop_listening)) }
-                IconButton(onClick = onPrevious) { Icon(painterResource(R.drawable.ic_skip_previous), contentDescription = stringResource(R.string.previous_sentence)) }
-                FilledIconButton(onClick = onPlayPause) {
-                    val playing = status == ReadAloudManager.Status.Playing || status == ReadAloudManager.Status.Preparing
-                    Icon(
-                        painterResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play),
-                        contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
-                    )
-                }
-                IconButton(onClick = onNext) { Icon(painterResource(R.drawable.ic_skip_next), contentDescription = stringResource(R.string.next_sentence)) }
-                SleepTimerButton(active = sleepEndsAt != null, onSelect = onSleepTimer)
-                TextButton(onClick = onVoices) {
-                    Text("$voiceName · ${String.format(locale, "%.1f", speed)}×", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            val statusText = buildString {
-                append(
-                    when (status) {
-                        ReadAloudManager.Status.Preparing -> stringResource(R.string.tts_preparing)
-                        ReadAloudManager.Status.Playing -> stringResource(R.string.tts_playing)
-                        ReadAloudManager.Status.Paused -> stringResource(R.string.tts_paused)
-                        ReadAloudManager.Status.Ended -> stringResource(R.string.tts_ended)
-                        is ReadAloudManager.Status.Error -> stringResource(R.string.tts_error, status.message)
-                        else -> ""
-                    },
-                )
-                sleepEndsAt?.let { endsAt ->
-                    val remaining = remainingMinutes(endsAt)
-                    if (isNotEmpty()) append(" · ")
-                    append(stringResource(R.string.sleep_timer_remaining, remaining))
-                }
-            }
-            if (statusText.isNotEmpty()) {
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (status is ReadAloudManager.Status.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
-            }
+    val playing = status == ReadAloudManager.Status.Playing || status == ReadAloudManager.Status.Preparing
+    val statusText = buildString {
+        append(
+            when (status) {
+                ReadAloudManager.Status.Preparing -> stringResource(R.string.tts_preparing)
+                ReadAloudManager.Status.Playing -> stringResource(R.string.library_status_playing)
+                ReadAloudManager.Status.Paused -> stringResource(R.string.tts_paused)
+                ReadAloudManager.Status.Ended -> stringResource(R.string.tts_ended)
+                is ReadAloudManager.Status.Error -> stringResource(R.string.tts_error, status.message)
+                else -> ""
+            },
+        )
+        sleepEndsAt?.let { endsAt ->
+            if (isNotEmpty()) append(" · ")
+            append(stringResource(R.string.sleep_timer_remaining, remainingMinutes(endsAt)))
         }
     }
+    StatusPill(text = statusText, isError = status is ReadAloudManager.Status.Error) {
+        VoxIconButton(R.drawable.ic_vx_moon, stringResource(R.string.sleep_timer), onTimer, variant = VoxIconButtonVariant.Muted, size = VoxDimens.sizeControl, iconSize = 18.dp)
+        VoxIconButton(R.drawable.ic_vx_close, stringResource(R.string.stop_listening), onStop, variant = VoxIconButtonVariant.Muted, size = VoxDimens.sizeControl, iconSize = 18.dp)
+    }
+    val voice = SupertonicModel.voice(voiceId)
+    val speedText = formatSpeed(speed)
+    var speedMenu by remember { mutableStateOf(false) }
+    PlayerPill(
+        label = stringResource(R.string.reader_player),
+        voiceName = voice.name,
+        voiceId = voice.id,
+        voiceDescription = stringResource(R.string.reader_change_voice, voice.name),
+        speedText = speedText,
+        speedDescription = stringResource(R.string.reader_speed_description, speedText),
+        playing = playing,
+        playDescription = stringResource(if (playing) R.string.pause else R.string.play),
+        previousDescription = stringResource(R.string.previous_sentence),
+        nextDescription = stringResource(R.string.next_sentence),
+        onVoice = onVoices,
+        onPrevious = onPrevious,
+        onPlayPause = onPlayPause,
+        onNext = onNext,
+        onSpeed = { speedMenu = true },
+        speedAnchor = { chip ->
+            Box {
+                chip()
+                VoxDropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }, label = stringResource(R.string.reader_speed)) {
+                    SPEED_PRESETS.forEach { value ->
+                        VoxMenuItem(
+                            text = formatSpeed(value),
+                            onClick = {
+                                onSpeed(value)
+                                speedMenu = false
+                            },
+                            checked = abs(value - speed) < 0.05,
+                        )
+                    }
+                }
+            }
+        },
+    )
 }
 
 /** Minutos restantes hasta `endsAt`, actualizados cada 20 segundos mientras el temporizador esté activo. */
@@ -389,32 +488,122 @@ private fun remainingMinutes(endsAt: Long): Int {
     return (((endsAt - now) + 59_999) / 60_000).toInt().coerceAtLeast(0)
 }
 
+/** Temporizador de sueño (pantalla «Temporizador» del lienzo): cuánto falta y las opciones. */
 @Composable
-private fun SleepTimerButton(active: Boolean, onSelect: (Int?) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                painterResource(R.drawable.ic_timer),
-                contentDescription = stringResource(R.string.sleep_timer),
-                tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+private fun SleepTimerSheet(sleepEndsAt: Long?, onSelect: (Int?) -> Unit, onDismiss: () -> Unit) {
+    val c = VoxLibrisTheme.colors
+    var chosen by rememberSaveable { mutableStateOf<Int?>(null) }
+    VoxBottomSheet(onDismissRequest = onDismiss) {
+        SheetHeader(stringResource(R.string.sleep_timer), tag = stringResource(R.string.reader_sleep_tag))
+        if (sleepEndsAt != null) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(VoxDimens.radiusXl))
+                    .background(c.surfaceMuted)
+                    .padding(VoxDimens.space4),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(
+                    Modifier.size(VoxDimens.sizeTouch).clip(CircleShape).background(c.fillStrong),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(R.drawable.ic_vx_moon), contentDescription = null, tint = c.onFillStrong, modifier = Modifier.size(22.dp))
+                }
+                Column {
+                    Text(stringResource(R.string.reader_sleep_minutes, remainingMinutes(sleepEndsAt)), style = VoxLibrisTheme.typography.displayL, color = c.ink)
+                    Text(stringResource(R.string.reader_sleep_hint), style = VoxLibrisTheme.typography.caption, color = c.inkMuted)
+                }
+            }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.sleep_timer_off)) },
+        VoxChipGroup {
+            VoxChip(
+                stringResource(R.string.reader_sleep_off),
+                selected = sleepEndsAt == null,
                 onClick = {
+                    chosen = null
                     onSelect(null)
-                    expanded = false
                 },
             )
             SLEEP_TIMER_OPTIONS.forEach { minutes ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.sleep_timer_minutes, minutes)) },
+                VoxChip(
+                    stringResource(R.string.reader_sleep_minutes, minutes),
+                    selected = sleepEndsAt != null && chosen == minutes,
                     onClick = {
+                        chosen = minutes
                         onSelect(minutes)
-                        expanded = false
                     },
+                )
+            }
+        }
+        VoxButton(stringResource(R.string.reader_done), onClick = onDismiss, size = VoxButtonSize.Block)
+    }
+}
+
+/** Contenido del libro (pantalla «Capítulos y marcadores» del lienzo): capítulos y resaltados en pestañas. */
+@Composable
+private fun ContentsSheet(
+    entries: List<FlatEntry<Link>>,
+    current: Locator?,
+    highlights: List<Highlight>,
+    onSelect: (Link) -> Unit,
+    onGoToHighlight: (Highlight) -> Unit,
+    onEditNote: (Highlight) -> Unit,
+    onDeleteHighlight: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    VoxBottomSheet(onDismissRequest = onDismiss) {
+        SheetHeader(
+            stringResource(R.string.reader_contents),
+            tag = if (entries.isNotEmpty()) pluralStringResource(R.plurals.reader_chapters_count, entries.size, entries.size) else null,
+        )
+        VoxTabs(
+            tabs = listOf(
+                stringResource(R.string.reader_chapters),
+                if (highlights.isEmpty()) stringResource(R.string.highlights_title) else stringResource(R.string.reader_highlights_count, highlights.size),
+            ),
+            selectedIndex = tab,
+            onSelect = { tab = it },
+        )
+        if (tab == 0) {
+            ChapterList(entries, current, onSelect)
+        } else {
+            HighlightList(highlights, onGoToHighlight, onEditNote, onDeleteHighlight)
+        }
+    }
+}
+
+@Composable
+private fun ChapterList(entries: List<FlatEntry<Link>>, current: Locator?, onSelect: (Link) -> Unit) {
+    val c = VoxLibrisTheme.colors
+    if (entries.isEmpty()) {
+        EmptyText(stringResource(R.string.toc_empty))
+        return
+    }
+    val currentHref = current?.href?.toString()
+    val isCurrent = { link: Link -> currentHref != null && link.url().toString().substringBefore('#') == currentHref }
+    val currentIndex = entries.indexOfFirst { isCurrent(it.item) }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (currentIndex - 1).coerceAtLeast(0))
+    LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        items(entries) { entry ->
+            val link = entry.item
+            val selected = isCurrent(link)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(VoxDimens.radiusL))
+                    .background(if (selected) c.surfaceMuted else Color.Transparent)
+                    .clickable { onSelect(link) }
+                    .padding(start = (12 + entry.depth * 16).dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            ) {
+                Text(
+                    text = link.title ?: link.href.toString(),
+                    style = if (selected) VoxLibrisTheme.typography.bodyStrong else VoxLibrisTheme.typography.body,
+                    color = c.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -422,44 +611,276 @@ private fun SleepTimerButton(active: Boolean, onSelect: (Int?) -> Unit) {
 }
 
 @Composable
-private fun ProgressBar(locator: Locator?, positions: List<Locator>, onSeek: (Int) -> Unit) {
-    val currentIndex = ((locator?.locations?.position ?: 1) - 1).coerceAtLeast(0)
-    var sliderValue by remember(currentIndex) { mutableFloatStateOf(currentIndex.toFloat()) }
-    val percent = locator?.locations?.totalProgression?.let { (it * 100).roundToInt() }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .consumeTaps(),
-        tonalElevation = 3.dp,
-    ) {
-        Column(
-            Modifier
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            if (positions.size > 1) {
-                Slider(
-                    value = sliderValue,
-                    onValueChange = { sliderValue = it },
-                    onValueChangeFinished = { onSeek(sliderValue.roundToInt()) },
-                    valueRange = 0f..(positions.size - 1).toFloat(),
-                )
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = if (positions.isNotEmpty()) {
-                        stringResource(R.string.position_of, sliderValue.roundToInt() + 1, positions.size)
-                    } else {
-                        stringResource(R.string.reading_position)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                percent?.let {
-                    Text(stringResource(R.string.progress_percent, it), style = MaterialTheme.typography.bodySmall)
+private fun HighlightList(
+    highlights: List<Highlight>,
+    onGo: (Highlight) -> Unit,
+    onEditNote: (Highlight) -> Unit,
+    onDelete: (Long) -> Unit,
+) {
+    val c = VoxLibrisTheme.colors
+    if (highlights.isEmpty()) {
+        EmptyText(stringResource(R.string.highlights_empty))
+        return
+    }
+    val goLabel = stringResource(R.string.go_to_highlight)
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(VoxDimens.space1)) {
+        items(highlights, key = { it.id }) { highlight ->
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(VoxDimens.radiusL))
+                    .clickable(onClickLabel = goLabel) { onGo(highlight) }
+                    .padding(start = 12.dp, end = 4.dp, top = 12.dp, bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                HighlightedQuote(highlight.text, maxLines = 4, modifier = Modifier.padding(end = 8.dp))
+                highlight.note?.let { note ->
+                    Text(
+                        note,
+                        style = VoxLibrisTheme.typography.body,
+                        color = c.inkMuted,
+                        fontStyle = FontStyle.Italic,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        DateUtils.getRelativeTimeSpanString(highlight.createdAt).toString(),
+                        style = VoxLibrisTheme.typography.caption,
+                        color = c.inkMuted,
+                        modifier = Modifier.weight(1f),
+                    )
+                    VoxIconButton(
+                        R.drawable.ic_vx_edit,
+                        stringResource(if (highlight.note == null) R.string.add_note else R.string.edit_note),
+                        onClick = { onEditNote(highlight) },
+                        variant = VoxIconButtonVariant.Clear,
+                        size = VoxDimens.sizeTouch,
+                        iconSize = 20.dp,
+                    )
+                    VoxIconButton(
+                        R.drawable.ic_vx_trash,
+                        stringResource(R.string.delete_highlight),
+                        onClick = { onDelete(highlight.id) },
+                        variant = VoxIconButtonVariant.Clear,
+                        size = VoxDimens.sizeTouch,
+                        iconSize = 20.dp,
+                    )
                 }
             }
         }
+    }
+}
+
+/** La cita de un resaltado con el mismo fondo `reading-highlight` que tiene en el libro. */
+@Composable
+private fun HighlightedQuote(text: String, maxLines: Int, modifier: Modifier = Modifier) {
+    val c = VoxLibrisTheme.colors
+    Text(
+        buildAnnotatedString {
+            withStyle(SpanStyle(background = c.readingHighlight)) { append(text) }
+        },
+        style = VoxLibrisTheme.typography.body,
+        color = c.ink,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun EmptyText(text: String) {
+    Text(
+        text,
+        style = VoxLibrisTheme.typography.body,
+        color = VoxLibrisTheme.colors.inkMuted,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(vertical = VoxDimens.space6),
+    )
+}
+
+/** Apariencia del texto (pantalla «Apariencia» del lienzo): tamaño, tipografía, fondo e interlineado. */
+@OptIn(ExperimentalReadiumApi::class)
+@Composable
+private fun AppearanceSheet(
+    preferences: EpubPreferences,
+    createEditor: () -> EpubPreferencesEditor?,
+    onChange: (EpubPreferences) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val editor = remember(preferences) { createEditor() } ?: return
+    fun commit() = onChange(editor.preferences)
+    val c = VoxLibrisTheme.colors
+    val t = VoxLibrisTheme.typography
+    val paper = preferences.paper()
+    val context = LocalContext.current
+    val literata = remember { ComposeFontFamily(Font("fonts/Literata.ttf", context.assets)) }
+    val figtree = remember { ComposeFontFamily(Font(R.font.figtree)) }
+
+    VoxBottomSheet(onDismissRequest = onDismiss) {
+        SheetHeader(stringResource(R.string.reader_appearance), tag = stringResource(R.string.reader_appearance_tag))
+        Column(
+            Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionLabel(stringResource(R.string.font_size))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VoxDimens.space3)) {
+                    VoxTextIconButton("A−", stringResource(R.string.reader_font_smaller), onClick = { editor.fontSize.decrement(); commit() })
+                    Text(
+                        editor.fontSize.formatValue(editor.fontSize.effectiveValue),
+                        style = t.emphasis,
+                        color = c.ink,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f),
+                    )
+                    VoxTextIconButton("A+", stringResource(R.string.reader_font_bigger), onClick = { editor.fontSize.increment(); commit() })
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionLabel(stringResource(R.string.reader_font_family))
+                val families = listOf(
+                    Triple(null as FontFamily?, stringResource(R.string.reader_font_publisher), ComposeFontFamily.Default),
+                    Triple(ReaderFonts.Figtree, "Figtree", figtree),
+                    Triple(ReaderFonts.Literata, "Literata", literata),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
+                    families.forEach { (family, label, sampleFont) ->
+                        OptionCard(
+                            selected = preferences.fontFamily == family,
+                            onClick = { editor.fontFamily.set(family); commit() },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Aa", style = t.title.copy(fontFamily = sampleFont, fontSize = 26.sp, lineHeight = 32.sp), color = c.ink)
+                            Text(label, style = t.caption, color = c.ink, maxLines = 1)
+                        }
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionLabel(stringResource(R.string.reader_paper))
+                val papers = listOf(
+                    ReaderPaper.Warm to R.string.reader_paper_warm,
+                    ReaderPaper.White to R.string.reader_paper_white,
+                    ReaderPaper.Dark to R.string.reader_paper_dark,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
+                    papers.forEach { (option, label) ->
+                        OptionCard(
+                            selected = paper == option,
+                            onClick = { onChange(editor.preferences.withPaper(option)) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(option.background)
+                                    .border(1.dp, c.line, CircleShape),
+                            )
+                            Text(stringResource(label), style = t.caption, color = c.ink, maxLines = 1)
+                        }
+                    }
+                }
+            }
+
+            if (editor.lineHeight.isEffective) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionLabel(stringResource(R.string.line_height))
+                    val currentLine = editor.lineHeight.effectiveValue
+                    val nearest = LINE_HEIGHTS.minBy { abs(it.second - currentLine) }.second
+                    VoxChipGroup {
+                        LINE_HEIGHTS.forEach { (label, value) ->
+                            VoxChip(stringResource(label), selected = value == nearest, onClick = { editor.lineHeight.set(value); commit() })
+                        }
+                    }
+                }
+            }
+
+            SettingsList {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.scroll_mode),
+                    subtitle = stringResource(R.string.reader_scroll_hint),
+                    checked = editor.scroll.effectiveValue,
+                    onCheckedChange = { editor.scroll.set(it); commit() },
+                )
+                SettingsDivider()
+                SettingsSwitchRow(
+                    title = stringResource(R.string.publisher_styles),
+                    subtitle = stringResource(R.string.reader_publisher_styles_hint),
+                    checked = editor.publisherStyles.effectiveValue,
+                    onCheckedChange = { editor.publisherStyles.set(it); commit() },
+                )
+            }
+        }
+    }
+}
+
+/** Resaltado tocado en el texto: la cita, su nota y qué hacer con él. */
+@Composable
+private fun HighlightDialog(highlight: Highlight, onEditNote: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+    val c = VoxLibrisTheme.colors
+    VoxDialog(
+        title = stringResource(R.string.highlight_dialog_title),
+        onDismissRequest = onDismiss,
+        actions = {
+            VoxButton(stringResource(R.string.close), onDismiss, variant = VoxButtonVariant.Secondary, size = VoxButtonSize.Small)
+            VoxButton(
+                stringResource(if (highlight.note == null) R.string.add_note else R.string.edit_note),
+                onEditNote,
+                size = VoxButtonSize.Small,
+            )
+        },
+    ) {
+        HighlightedQuote(highlight.text, maxLines = 6)
+        highlight.note?.let { note ->
+            Text(note, style = VoxLibrisTheme.typography.body, color = c.inkMuted, fontStyle = FontStyle.Italic, maxLines = 6, overflow = TextOverflow.Ellipsis)
+        }
+        VoxMenuItem(stringResource(R.string.delete_highlight), onDelete, icon = R.drawable.ic_vx_trash, danger = true)
+    }
+}
+
+/** Editor de la nota personal de un resaltado: al crearlo se puede omitir, al editarlo se puede cancelar. */
+@Composable
+private fun NoteDialog(
+    editor: ReaderViewModel.NoteEditor,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var note by rememberSaveable(editor.highlightId) { mutableStateOf(editor.note.orEmpty()) }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(editor.highlightId) { focusRequester.requestFocus() }
+    VoxDialog(
+        title = stringResource(if (editor.isNew) R.string.highlight_saved else R.string.note_title),
+        onDismissRequest = onDismiss,
+        actions = {
+            VoxButton(
+                stringResource(if (editor.isNew) R.string.no_note else R.string.cancel),
+                onDismiss,
+                variant = VoxButtonVariant.Secondary,
+                size = VoxButtonSize.Small,
+            )
+            VoxButton(stringResource(R.string.save), { onSave(note) }, size = VoxButtonSize.Small)
+        },
+    ) {
+        if (editor.isNew) {
+            Text(stringResource(R.string.note_prompt), style = VoxLibrisTheme.typography.body, color = VoxLibrisTheme.colors.inkMuted)
+        }
+        HighlightedQuote(editor.text, maxLines = 4)
+        VoxTextField(
+            value = note,
+            onValueChange = { note = it },
+            label = stringResource(R.string.note_label),
+            minLines = 3,
+            maxLines = 6,
+            fieldModifier = Modifier.focusRequester(focusRequester),
+        )
     }
 }
 
@@ -470,56 +891,48 @@ private fun DefinitionCard(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val c = VoxLibrisTheme.colors
+    val t = VoxLibrisTheme.typography
     val uriHandler = LocalUriHandler.current
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        shape = MaterialTheme.shapes.large,
-        tonalElevation = 3.dp,
-        shadowElevation = 6.dp,
+    DictionaryCard(
+        word = state.word,
+        closeDescription = stringResource(R.string.close),
+        onClose = onDismiss,
+        modifier = modifier.consumeTaps(),
+        footer = if (state is ReaderViewModel.DefinitionState.Loading) {
+            null
+        } else {
+            {
+                VoxButton(
+                    stringResource(R.string.definition_open),
+                    onClick = { uriHandler.openUri(WiktionaryDictionary.pageUrl(state.word)) },
+                    variant = VoxButtonVariant.Secondary,
+                    size = VoxButtonSize.Small,
+                    icon = R.drawable.ic_vx_external,
+                )
+            }
+        },
     ) {
-        Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(state.word, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) {
-                    Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.close))
-                }
+        when (state) {
+            is ReaderViewModel.DefinitionState.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = c.fillStrong, trackColor = c.track, strokeWidth = 2.dp)
+                Text(stringResource(R.string.definition_loading), style = t.body, color = c.inkMuted, modifier = Modifier.padding(start = 12.dp))
             }
-            Column(
-                Modifier
-                    .heightIn(max = 280.dp)
-                    .verticalScroll(rememberScrollState())
-                    .padding(end = 12.dp),
-            ) {
-                when (state) {
-                    is ReaderViewModel.DefinitionState.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Text(stringResource(R.string.definition_loading), modifier = Modifier.padding(start = 12.dp))
-                    }
-                    is ReaderViewModel.DefinitionState.NotFound -> Text(stringResource(R.string.definition_not_found, state.word))
-                    is ReaderViewModel.DefinitionState.Offline -> Text(stringResource(R.string.definition_offline))
-                    is ReaderViewModel.DefinitionState.Found -> {
-                        EntrySections(state.result.entry)
-                        state.result.lemma?.let { lemma ->
-                            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                            Text(lemma.word, style = MaterialTheme.typography.titleMedium)
-                            EntrySections(lemma)
-                        }
-                        Text(
-                            text = stringResource(R.string.definition_attribution),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    }
+            is ReaderViewModel.DefinitionState.NotFound -> Text(stringResource(R.string.definition_not_found, state.word), style = t.body, color = c.inkMuted)
+            is ReaderViewModel.DefinitionState.Offline -> Text(stringResource(R.string.definition_offline), style = t.body, color = c.inkMuted)
+            is ReaderViewModel.DefinitionState.Found -> {
+                EntrySections(state.result.entry)
+                state.result.lemma?.let { lemma ->
+                    Box(Modifier.fillMaxWidth().padding(vertical = VoxDimens.space2).height(1.dp).background(c.line))
+                    Text(lemma.word, style = t.title, color = c.ink)
+                    EntrySections(lemma)
                 }
-            }
-            if (state !is ReaderViewModel.DefinitionState.Loading) {
-                TextButton(onClick = { uriHandler.openUri(WiktionaryDictionary.pageUrl(state.word)) }) {
-                    Text(stringResource(R.string.definition_open))
-                }
+                Text(
+                    text = stringResource(R.string.definition_attribution),
+                    style = t.caption,
+                    color = c.inkMuted,
+                    modifier = Modifier.padding(top = VoxDimens.space2),
+                )
             }
         }
     }
@@ -527,15 +940,11 @@ private fun DefinitionCard(
 
 @Composable
 private fun EntrySections(entry: DictionaryEntry) {
+    val c = VoxLibrisTheme.colors
     entry.sections.take(MAX_SECTIONS).forEach { section ->
-        Text(
-            text = section.partOfSpeech,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
-        )
+        SectionLabel(section.partOfSpeech, Modifier.padding(top = VoxDimens.space2, bottom = 2.dp))
         section.senses.take(MAX_SENSES).forEachIndexed { index, sense ->
-            Text(senseText(index, sense), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp))
+            Text(senseText(index, sense), style = VoxLibrisTheme.typography.body, color = c.ink, modifier = Modifier.padding(vertical = 2.dp))
         }
     }
 }
@@ -557,270 +966,3 @@ private fun senseText(index: Int, sense: DictionarySense): String {
 
 private const val MAX_SECTIONS = 3
 private const val MAX_SENSES = 4
-
-/** Editor de la nota personal de un resaltado: al crearlo se puede omitir, al editarlo se puede cancelar. */
-@Composable
-private fun NoteDialog(
-    editor: ReaderViewModel.NoteEditor,
-    onSave: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var note by rememberSaveable(editor.highlightId) { mutableStateOf(editor.note.orEmpty()) }
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(editor.highlightId) { focusRequester.requestFocus() }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (editor.isNew) R.string.highlight_saved else R.string.note_title)) },
-        text = {
-            Column {
-                if (editor.isNew) {
-                    Text(stringResource(R.string.note_prompt), modifier = Modifier.padding(bottom = 8.dp))
-                }
-                Text(
-                    text = "“${editor.text}”",
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text(stringResource(R.string.note_label)) },
-                    minLines = 3,
-                    maxLines = 6,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                        .focusRequester(focusRequester),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(note) }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(if (editor.isNew) R.string.no_note else R.string.cancel)) }
-        },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HighlightsSheet(
-    highlights: List<Highlight>,
-    onGo: (Highlight) -> Unit,
-    onEditNote: (Highlight) -> Unit,
-    onDelete: (Long) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = stringResource(R.string.highlights_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        if (highlights.isEmpty()) {
-            Text(
-                text = stringResource(R.string.highlights_empty),
-                modifier = Modifier.padding(24.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            LazyColumn(Modifier.navigationBarsPadding()) {
-                items(highlights, key = { it.id }) { highlight ->
-                    ListItem(
-                        headlineContent = {
-                            Text("“${highlight.text}”", maxLines = 3, overflow = TextOverflow.Ellipsis)
-                        },
-                        supportingContent = {
-                            Column {
-                                highlight.note?.let { note ->
-                                    Text(
-                                        text = note,
-                                        fontStyle = FontStyle.Italic,
-                                        maxLines = 3,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(bottom = 4.dp),
-                                    )
-                                }
-                                Text(
-                                    text = DateUtils.getRelativeTimeSpanString(highlight.createdAt).toString(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        },
-                        trailingContent = {
-                            Row {
-                                IconButton(onClick = { onEditNote(highlight) }) {
-                                    Icon(
-                                        painterResource(R.drawable.ic_edit),
-                                        contentDescription = stringResource(if (highlight.note == null) R.string.add_note else R.string.edit_note),
-                                    )
-                                }
-                                IconButton(onClick = { onDelete(highlight.id) }) {
-                                    Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.delete_highlight))
-                                }
-                            }
-                        },
-                        modifier = Modifier.clickable { onGo(highlight) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TocSheet(
-    entries: List<FlatEntry<Link>>,
-    current: Locator?,
-    onSelect: (Link) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val currentHref = current?.href?.toString()
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = stringResource(R.string.toc),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        if (entries.isEmpty()) {
-            Text(
-                text = stringResource(R.string.toc_empty),
-                modifier = Modifier.padding(24.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            LazyColumn(Modifier.navigationBarsPadding()) {
-                items(entries) { entry ->
-                    val link = entry.item
-                    val selected = currentHref != null &&
-                        link.url().toString().substringBefore('#') == currentHref
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = link.title ?: link.href.toString(),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            )
-                        },
-                        colors = ListItemDefaults.colors(
-                            containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-                        ),
-                        modifier = Modifier
-                            .clickable { onSelect(link) }
-                            .padding(start = (entry.depth * 16).dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalReadiumApi::class)
-@Composable
-private fun SettingsSheet(
-    preferences: EpubPreferences,
-    createEditor: () -> EpubPreferencesEditor?,
-    onChange: (EpubPreferences) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val editor = remember(preferences) { createEditor() } ?: return
-    fun commit() = onChange(editor.preferences)
-
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp),
-        ) {
-            Text(stringResource(R.string.reading_settings), style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(16.dp))
-
-            Text(stringResource(R.string.theme), style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
-            val themes = listOf(
-                Theme.LIGHT to R.string.theme_light,
-                Theme.SEPIA to R.string.theme_sepia,
-                Theme.DARK to R.string.theme_dark,
-            )
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                themes.forEachIndexed { index, (theme, label) ->
-                    SegmentedButton(
-                        selected = editor.theme.effectiveValue == theme,
-                        onClick = {
-                            editor.theme.set(theme)
-                            commit()
-                        },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = themes.size),
-                        label = { Text(stringResource(label)) },
-                    )
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-
-            StepperRow(
-                label = stringResource(R.string.font_size),
-                value = editor.fontSize.formatValue(editor.fontSize.effectiveValue),
-                onDecrease = { editor.fontSize.decrement(); commit() },
-                onIncrease = { editor.fontSize.increment(); commit() },
-            )
-            SwitchRow(
-                label = stringResource(R.string.scroll_mode),
-                checked = editor.scroll.effectiveValue,
-                onToggle = { editor.scroll.toggle(); commit() },
-            )
-            SwitchRow(
-                label = stringResource(R.string.publisher_styles),
-                checked = editor.publisherStyles.effectiveValue,
-                onToggle = { editor.publisherStyles.toggle(); commit() },
-            )
-            if (editor.lineHeight.isEffective) {
-                StepperRow(
-                    label = stringResource(R.string.line_height),
-                    value = editor.lineHeight.formatValue(editor.lineHeight.effectiveValue),
-                    onDecrease = { editor.lineHeight.decrement(); commit() },
-                    onIncrease = { editor.lineHeight.increment(); commit() },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepperRow(label: String, value: String, onDecrease: () -> Unit, onIncrease: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val decrease = stringResource(R.string.decrease)
-        val increase = stringResource(R.string.increase)
-        Text(label, Modifier.weight(1f))
-        IconButton(onClick = onDecrease, modifier = Modifier.semantics { contentDescription = decrease }) {
-            Text("−", style = MaterialTheme.typography.titleLarge)
-        }
-        Text(value, style = MaterialTheme.typography.bodyMedium)
-        IconButton(onClick = onIncrease, modifier = Modifier.semantics { contentDescription = increase }) {
-            Text("+", style = MaterialTheme.typography.titleLarge)
-        }
-    }
-}
-
-@Composable
-private fun SwitchRow(label: String, checked: Boolean, onToggle: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = { onToggle() })
-    }
-}

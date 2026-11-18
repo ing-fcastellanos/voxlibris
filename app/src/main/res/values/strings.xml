@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VoxLibris</string>
-    <string name="library_title">Biblioteca</string>
     <string name="add_book">Agregar libro</string>
     <string name="empty_library_title">Tu biblioteca está vacía</string>
     <string name="empty_library_body">Tocá “Agregar libro” para importar un EPUB desde el almacenamiento del teléfono.</string>
@@ -21,7 +20,6 @@
     <string name="delete">Eliminar</string>
     <string name="cancel">Cancelar</string>
     <string name="unknown_title">Sin título</string>
-    <string name="cover_of">Portada de %1$s</string>
 
     <!-- Lector -->
     <string name="opening_book">Abriendo libro…</string>
@@ -29,16 +27,8 @@
     <string name="msg_book_file_missing">No se encuentra el archivo del libro</string>
     <string name="msg_not_supported">Este archivo no es un EPUB compatible</string>
     <string name="back">Volver</string>
-    <string name="toc">Índice</string>
     <string name="toc_empty">Este libro no tiene índice</string>
-    <string name="reading_settings">Ajustes de lectura</string>
-    <string name="theme">Tema</string>
-    <string name="theme_light">Claro</string>
-    <string name="theme_sepia">Sepia</string>
-    <string name="theme_dark">Oscuro</string>
     <string name="font_size">Tamaño de letra</string>
-    <string name="decrease">Reducir</string>
-    <string name="increase">Aumentar</string>
     <string name="scroll_mode">Desplazamiento continuo</string>
     <string name="publisher_styles">Respetar estilos del editor</string>
     <string name="line_height">Interlineado</string>
@@ -54,7 +44,6 @@
     <string name="next_sentence">Frase siguiente</string>
     <string name="previous_sentence">Frase anterior</string>
     <string name="voices_title">Lectores</string>
-    <string name="voice_sample">Escuchar muestra</string>
     <string name="voice_female">Voz femenina</string>
     <string name="voice_male">Voz masculina</string>
     <string name="model_not_installed">Las voces se descargan una sola vez (%1$d MB) y después funcionan sin conexión.</string>
@@ -65,14 +54,12 @@
     <string name="delete_voices">Eliminar voces</string>
     <string name="retry">Reintentar</string>
     <string name="download">Descargar</string>
-    <string name="speed_label">Velocidad: %1$s×</string>
     <string name="quality">Calidad</string>
     <string name="quality_auto">Auto</string>
     <string name="quality_fast">Rápida</string>
     <string name="quality_high">Alta</string>
     <string name="quality_hint">Auto mide tu teléfono la primera vez y elige. Rápida sintetiza con 4 pasos; Alta con 8.</string>
     <string name="tts_preparing">Preparando la voz…</string>
-    <string name="tts_playing">Leyendo</string>
     <string name="tts_paused">En pausa</string>
     <string name="tts_ended">Fin del libro</string>
     <string name="tts_error">No se pudo leer en voz alta: %1$s</string>
@@ -82,11 +69,7 @@
 
     <!-- Segundo plano -->
     <string name="sleep_timer">Temporizador de sueño</string>
-    <string name="sleep_timer_off">Sin temporizador</string>
-    <string name="sleep_timer_minutes">%1$d minutos</string>
     <string name="sleep_timer_remaining">Se detiene en %1$d min</string>
-    <string name="now_playing">Leyendo: %1$s</string>
-    <string name="open_reader">Abrir</string>
 
     <!-- Selección de texto en el lector -->
     <string name="read_from_here">Leer desde acá</string>

@@ -1,44 +1,53 @@
 package com.fcastellanos.voxlibris.ui.voices
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import com.fcastellanos.voxlibris.R
+import com.fcastellanos.voxlibris.ui.components.Tag
+import com.fcastellanos.voxlibris.ui.components.VoxIconButton
+import com.fcastellanos.voxlibris.ui.theme.VoxDimens
+import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Lectores, desde la barra de la biblioteca: la misma elección de voz que en el lector, a pantalla completa. */
 @Composable
 fun VoicesScreen(viewModel: VoicesViewModel, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.voices_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.back))
-                    }
-                },
+    val c = VoxLibrisTheme.colors
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(c.ground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(start = VoxDimens.space5, end = VoxDimens.space5, top = VoxDimens.space3),
+        verticalArrangement = Arrangement.spacedBy(VoxDimens.space4),
+    ) {
+        VoxIconButton(R.drawable.ic_vx_back, stringResource(R.string.back), onBack)
+        Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
+            Text(
+                stringResource(R.string.voices_title),
+                style = VoxLibrisTheme.typography.displayXl,
+                color = c.ink,
+                modifier = Modifier.semantics { heading() },
             )
-        },
-    ) { innerPadding ->
+            Tag(stringResource(R.string.voices_tag))
+        }
         VoiceSettingsContent(
             viewModel = viewModel,
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            onGround = true,
+            modifier = Modifier.weight(1f).padding(bottom = VoxDimens.space4),
         )
     }
 }

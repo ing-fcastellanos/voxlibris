@@ -40,8 +40,14 @@ data class VoxColors(
     val focus: Color,
     /** Velo detrás de hojas inferiores y diálogos. */
     val scrim: Color,
-    /** Fondo cálido del texto completo del libro. */
+    /** Fondo del texto del libro con el fondo Cálido y en oscuro, y de las pantallas de lectura. */
     val page: Color,
+    /** Fondo de la frase que suena dentro del texto del libro. En claro es mustard; en oscuro, un mostaza apagado para que el texto claro siga pasando 4,5:1. */
+    val readingNow: Color,
+    /** Fondo de los pasajes que la persona resaltó en el libro, y de su cita en la lista de resaltados. El texto encima va en ink. */
+    val readingHighlight: Color,
+    /** Ícono de nota al final de un resaltado con nota. Pasa 3:1 sobre page, sobre blanco y sobre reading-highlight. */
+    val noteMark: Color,
     /** Solo el botón Agregar libro y el día de hoy en la racha. */
     val accent: Color,
     /** Ícono y texto sobre accent. */
@@ -105,6 +111,9 @@ val LightVoxColors = VoxColors(
     focus = Color(0xFF17151F),
     scrim = Color(0x8C17151F),
     page = Color(0xFFFFF3EE),
+    readingNow = Color(0xFFFFC83D),
+    readingHighlight = Color(0xFFB2ECD9),
+    noteMark = Color(0xFF178A64),
     accent = Color(0xFF6D4AFF),
     onAccent = Color(0xFFFFFFFF),
     accentSoft = Color(0xFFDCD3FF),
@@ -145,6 +154,9 @@ val DarkVoxColors = VoxColors(
     focus = Color(0xFFF4F3F8),
     scrim = Color(0x99000000),
     page = Color(0xFF1C1719),
+    readingNow = Color(0xFF6B5526),
+    readingHighlight = Color(0xFF264E42),
+    noteMark = Color(0xFF3FD0A0),
     accent = Color(0xFF9D85FF),
     onAccent = Color(0xFF17151F),
     accentSoft = Color(0xFF3B2F73),

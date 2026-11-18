@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos del lector y de los lectores con el Sistema de diseño VoxLibris. -->
+<resources>
+    <!-- Barra superior y barra de lectura -->
+    <string name="reader_title_percent">· %1$d %%</string>
+    <string name="reader_contents">Contenido</string>
+    <string name="reader_appearance">Apariencia</string>
+    <string name="reader_reading_bar">Lectura</string>
+    <string name="reader_position_percent">%1$s · %2$d %%</string>
+
+    <!-- Contenido: capítulos y resaltados -->
+    <string name="reader_chapters">Capítulos</string>
+    <string name="reader_highlights_count">Resaltados · %1$d</string>
+    <plurals name="reader_chapters_count">
+        <item quantity="one">%1$d capítulo</item>
+        <item quantity="other">%1$d capítulos</item>
+    </plurals>
+
+    <!-- Apariencia -->
+    <string name="reader_appearance_tag">Se aplica al instante</string>
+    <string name="reader_font_family">Tipografía</string>
+    <string name="reader_font_publisher">Del libro</string>
+    <string name="reader_font_smaller">Letra más chica</string>
+    <string name="reader_font_bigger">Letra más grande</string>
+    <string name="reader_paper">Fondo</string>
+    <string name="reader_paper_warm">Cálido</string>
+    <string name="reader_paper_white">Blanco</string>
+    <string name="reader_paper_dark">Oscuro</string>
+    <string name="reader_line_compact">Compacto</string>
+    <string name="reader_line_normal">Normal</string>
+    <string name="reader_line_wide">Amplio</string>
+    <string name="reader_scroll_hint">Deslizás el texto en lugar de pasar páginas</string>
+    <string name="reader_publisher_styles_hint">Desactivalo para elegir el interlineado</string>
+
+    <!-- Lectura en voz alta -->
+    <string name="reader_player">Lectura en voz alta</string>
+    <string name="reader_change_voice">Cambiar lector, ahora %1$s</string>
+    <string name="reader_speed_description">Velocidad %1$s</string>
+    <string name="reader_speed">Velocidad</string>
+    <string name="reader_sleep_tag">Pausa la voz sola</string>
+    <string name="reader_sleep_off">Apagado</string>
+    <string name="reader_sleep_minutes">%1$d min</string>
+    <string name="reader_sleep_hint">La voz se pausa al llegar a cero</string>
+    <string name="reader_done">Listo</string>
+
+    <!-- Lectores -->
+    <string name="voices_who">¿Quién lee?</string>
+    <string name="voices_tag">Supertonic 3 · sin internet</string>
+    <string name="voices_female_group">Femeninas</string>
+    <string name="voices_male_group">Masculinas</string>
+    <string name="voices_sample_of">Muestra de %1$s</string>
+    <string name="voices_listen_sample">Escuchar la muestra de %1$s</string>
+    <string name="voices_installed_subtitle">%1$d MB · funcionan sin conexión</string>
+</resources>

@@ -2,8 +2,7 @@ package com.fcastellanos.voxlibris.di
 
 import android.app.Application
 import android.content.Context
-import androidx.core.content.ContextCompat
-import com.fcastellanos.voxlibris.R
+import androidx.compose.ui.graphics.toArgb
 import com.fcastellanos.voxlibris.data.BookRepository
 import com.fcastellanos.voxlibris.data.EpubImporter
 import com.fcastellanos.voxlibris.data.HighlightRepository
@@ -18,6 +17,7 @@ import com.fcastellanos.voxlibris.tts.SherpaTtsEngineProvider
 import com.fcastellanos.voxlibris.tts.SherpaTtsRuntime
 import com.fcastellanos.voxlibris.tts.TtsPreferencesStore
 import com.fcastellanos.voxlibris.tts.VoiceModelManager
+import com.fcastellanos.voxlibris.ui.theme.LightVoxColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,11 +40,14 @@ class AppContainer(context: Context) {
     val bookRepository: BookRepository by lazy { BookRepository(database.bookDao(), storage) }
     val highlightRepository: HighlightRepository by lazy { HighlightRepository(database.highlightDao()) }
 
-    /** Color de los resaltados del usuario: `mint` del sistema de diseño (`mustard` queda para la frase que suena). */
-    val highlightTint: Int by lazy { (ContextCompat.getColor(appContext, R.color.vx_mint) and 0x00FFFFFF) or (0x80 shl 24) }
+    /**
+     * Color que se guarda con cada resaltado nuevo: `reading-highlight` del tema claro. Al dibujarlo,
+     * el lector usa el token del fondo de lectura actual (ver ReaderPaper.withPaperColors).
+     */
+    val highlightTint: Int by lazy { LightVoxColors.readingHighlight.toArgb() }
 
-    /** Color del icono de nota junto a un resaltado: el `mint` profundo del sistema. */
-    val noteMarkTint: Int by lazy { ContextCompat.getColor(appContext, R.color.vx_mint_deep) }
+    /** Color del ícono de nota: `note-mark`. El lector también lo ajusta al fondo de lectura. */
+    val noteMarkTint: Int by lazy { LightVoxColors.noteMark.toArgb() }
 
     /** Diccionario en línea; Wikimedia pide identificar la app en cada consulta. */
     val dictionary: WiktionaryDictionary by lazy {
