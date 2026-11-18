@@ -72,7 +72,7 @@ Los mensajes propios de la app salen con la etiqueta `VoxLibris.TTS`: carga del 
 | 1.8 | Rotar la pantalla en la biblioteca; cerrar la app desde recientes y reabrir | Sin crash. Los libros persisten. |
 | 1.9 | `./gradlew :app:connectedDebugAndroidTest` | 6 tests en verde: 3 de `EpubImporterTest`, 3 de `ReaderRepositoryTest`. |
 | 1.10 | Primer inicio (o tras borrar los datos de la app) | Pantalla "Antes de empezar" con dos pasos. Paso 1, batería: "Permitir sin restricciones" abre el diálogo del sistema; al aceptarlo el paso queda con tilde "Listo: sin restricciones de batería" (en MIUI, Ajustes → Batería → VoxLibris pasa a "Sin restricciones"). "Abrir ajustes de batería" abre la pantalla de MIUI de la app. |
-| 1.11 | En "Antes de empezar", paso 2 → "Descargar voces" | Barra de avance con "Descargando las voces…" y "NN MB de 123 MB"; después "Instalando las voces…" con su porcentaje; al final tilde "Listo: voces instaladas". "Cancelar" vuelve al botón de descarga. "Continuar" lleva a la biblioteca y la pantalla no vuelve a aparecer; la descarga, si quedó en curso, sigue y se ve en Lectores. |
+| 1.11 | En "Antes de empezar", paso 2 → "Descargar voces" | Barra de avance con "Descargando las voces…" y "NN MB de 122 MB"; después "Instalando las voces…" con su porcentaje; al final tilde "Listo: voces instaladas". "Cancelar" vuelve al botón de descarga. "Continuar" lleva a la biblioteca y la pantalla no vuelve a aparecer; la descarga, si quedó en curso, sigue y se ve en Lectores. |
 
 ---
 
