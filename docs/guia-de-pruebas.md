@@ -103,6 +103,8 @@ Usar el *Quijote* para 2.2 a 2.6; el libro de prueba sirve para lo demás.
 
 Hacer 3.1 a 3.4 en la pantalla "Lectores" (icono en la biblioteca) y el resto dentro del lector.
 
+Verificada en el POCO X3 Pro: 3.18 a 3.20 OK el 18/11/2026 (retomar tras detener, arrancar a mitad de página y tiempo que falta para terminar el libro).
+
 | ID | Prueba | Resultado esperado |
 |---|---|---|
 | 3.1 | Abrir "Lectores" sin voces instaladas | Tarjeta "Las voces se descargan una sola vez (122 MB)…" con botón "Descargar voces". Lista de diez voces deshabilitada. Velocidad y calidad visibles. |
