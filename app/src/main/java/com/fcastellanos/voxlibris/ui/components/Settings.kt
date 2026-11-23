@@ -12,18 +12,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fcastellanos.voxlibris.R
 import com.fcastellanos.voxlibris.ui.theme.VoxDimens
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 
@@ -78,7 +83,10 @@ fun SettingsSwitchRow(
     }
 }
 
-/** Fila que abre algo o ejecuta una acción. [trailing] muestra un valor, un botón o una flecha. */
+/**
+ * Fila que abre algo o ejecuta una acción. [leading] va delante del texto (el avatar de una voz, un
+ * ícono); [trailing] muestra un valor, un botón o una flecha.
+ */
 @Composable
 fun SettingsRow(
     title: String,
@@ -86,10 +94,28 @@ fun SettingsRow(
     subtitle: String? = null,
     titleColor: Color = VoxLibrisTheme.colors.ink,
     onClick: (() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val clickable = if (onClick != null) modifier.clickable(role = Role.Button, onClick = onClick) else modifier
-    SettingsRowFrame(title, subtitle, clickable, titleColor, trailing)
+    SettingsRowFrame(title, subtitle, clickable, titleColor, leading, trailing)
+}
+
+/** Flecha de una fila que abre otra pantalla ([down] para un menú desplegable). */
+@Composable
+fun SettingsChevron(down: Boolean = false) {
+    Icon(
+        painterResource(if (down) R.drawable.ic_vx_chevron_down else R.drawable.ic_vx_chevron),
+        contentDescription = null,
+        tint = VoxLibrisTheme.colors.ink,
+        modifier = Modifier.size(20.dp),
+    )
+}
+
+/** Valor actual de una fila (`vx-list__value`), antes de la flecha. */
+@Composable
+fun SettingsValue(text: String) {
+    Text(text, style = VoxLibrisTheme.typography.caption, color = VoxLibrisTheme.colors.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 @Composable
@@ -98,6 +124,7 @@ private fun SettingsRowFrame(
     subtitle: String?,
     modifier: Modifier,
     titleColor: Color = VoxLibrisTheme.colors.ink,
+    leading: (@Composable () -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit,
 ) {
     val c = VoxLibrisTheme.colors
@@ -109,6 +136,7 @@ private fun SettingsRowFrame(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        leading?.invoke()
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = VoxLibrisTheme.typography.bodyStrong, color = titleColor)
             if (subtitle != null) Text(subtitle, style = VoxLibrisTheme.typography.caption, color = c.inkMuted)

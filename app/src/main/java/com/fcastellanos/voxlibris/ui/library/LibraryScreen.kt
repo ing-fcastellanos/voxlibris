@@ -1,8 +1,6 @@
 package com.fcastellanos.voxlibris.ui.library
 
 import android.content.Context
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,8 +62,8 @@ import com.fcastellanos.voxlibris.ui.components.ContinueCard
 import com.fcastellanos.voxlibris.ui.components.CoverShape
 import com.fcastellanos.voxlibris.ui.components.CoverSize
 import com.fcastellanos.voxlibris.ui.components.MiniPlayer
-import com.fcastellanos.voxlibris.ui.components.NavBar
-import com.fcastellanos.voxlibris.ui.components.NavBarItem
+import com.fcastellanos.voxlibris.ui.MainNavBar
+import com.fcastellanos.voxlibris.ui.MainSection
 import com.fcastellanos.voxlibris.ui.components.VoxBottomSheet
 import com.fcastellanos.voxlibris.ui.components.VoxButton
 import com.fcastellanos.voxlibris.ui.components.VoxButtonSize
@@ -82,7 +80,6 @@ import com.fcastellanos.voxlibris.ui.theme.VoxDimens
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 import kotlinx.coroutines.launch
 
-private val EPUB_MIME_TYPES = arrayOf("application/epub+zip")
 private const val FEATURED_KEY = "featured"
 
 /**
@@ -90,7 +87,13 @@ private const val FEATURED_KEY = "featured"
  * la lista de libros con play directo, el mini reproductor y la barra de navegación flotante.
  */
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel, onOpenVoices: () -> Unit) {
+fun LibraryScreen(
+    viewModel: LibraryViewModel,
+    onAddBook: () -> Unit,
+    onNowPlaying: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenVoices: () -> Unit,
+) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val openingBookId by viewModel.openingBookId.collectAsStateWithLifecycle()
@@ -118,10 +121,7 @@ fun LibraryScreen(viewModel: LibraryViewModel, onOpenVoices: () -> Unit) {
         }
     }
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        viewModel.importAll(uris)
-    }
-    val addBook = { picker.launch(EPUB_MIME_TYPES) }
+    val addBook = onAddBook
 
     val playing = status == ReadAloudManager.Status.Playing || status == ReadAloudManager.Status.Preparing
     val statusText = readAloudStatusText(status)
@@ -244,15 +244,12 @@ fun LibraryScreen(viewModel: LibraryViewModel, onOpenVoices: () -> Unit) {
                     onStop = viewModel.readAloud::stop,
                 )
             }
-            NavBar(
-                label = stringResource(R.string.library_nav),
-                items = listOf(
-                    NavBarItem(stringResource(R.string.library_nav_home), R.drawable.ic_vx_home, selected = true) {
-                        scope.launch { listState.animateScrollToItem(0) }
-                    },
-                    NavBarItem(stringResource(R.string.add_book), R.drawable.ic_vx_plus, accent = true, onClick = addBook),
-                    NavBarItem(stringResource(R.string.voices_title), R.drawable.ic_vx_voice, onClick = onOpenVoices),
-                ),
+            MainNavBar(
+                current = MainSection.HOME,
+                onHome = { scope.launch { listState.animateScrollToItem(0) } },
+                onNowPlaying = onNowPlaying,
+                onAddBook = addBook,
+                onSettings = onOpenSettings,
             )
         }
     }
@@ -416,6 +413,7 @@ private val UiMessage.isError: Boolean
 private fun UiMessage.toText(context: Context): String = when (this) {
     is UiMessage.Imported -> context.resources.getQuantityString(R.plurals.msg_imported, count, count)
     is UiMessage.Deleted -> context.getString(R.string.msg_deleted, title)
+    UiMessage.NothingToPlay -> context.getString(R.string.library_nothing_playing)
     is UiMessage.OpenFailed -> when (val e = error) {
         OpenBookError.BookNotFound -> context.getString(R.string.msg_book_not_found)
         OpenBookError.FileMissing -> context.getString(R.string.msg_book_file_missing)

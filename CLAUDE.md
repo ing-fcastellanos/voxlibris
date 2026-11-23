@@ -40,6 +40,10 @@ ui/theme/Type.kt              # fuentes, estilos de texto y su mapeo a la tipogr
 ui/theme/Theme.kt             # VoxLibrisTheme: tokens propios y esquema de Material
 ui/components/                # componentes del sistema y ComponentPreviews.kt, con vistas previas claras y oscuras
 ui/reader/ReaderPaper.kt      # fondos de lectura, colores de las decoraciones y fuentes de Readium
+ui/reader/AppearanceSheet.kt  # hoja de Apariencia, compartida por el lector y Ajustes
+ui/MainNavBar.kt              # la barra de cuatro ítems: Inicio, Reproduciendo, Agregar libro y Ajustes
+ui/settings/                  # Ajustes y Voces y almacenamiento; ui/voices/DefaultVoiceScreen.kt es Voz predeterminada
+settings/AppPreferencesStore.kt # tema, resaltado de la frase que suena y revisión del paquete de voces
 assets/fonts/                 # Literata y Figtree para el texto del libro
 ```
 

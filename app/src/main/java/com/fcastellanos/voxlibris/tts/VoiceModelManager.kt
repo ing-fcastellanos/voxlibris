@@ -77,6 +77,28 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
         _state.value = State.NotInstalled
     }
 
+    /** Borra lo instalado y vuelve a descargar el paquete que trae la app. */
+    fun reinstall() {
+        delete()
+        install()
+    }
+
+    /** Nombre del paquete instalado, anotado al instalar; null en instalaciones anteriores a la marca. */
+    fun installedVersion(): String? = File(modelDir, VERSION_MARKER).takeIf { it.isFile }?.readText()?.trim()
+
+    /** Falso solo cuando la marca dice que lo instalado es un paquete distinto del que trae la app. */
+    fun isCurrentVersion(): Boolean = installedVersion()?.let { it == SupertonicModel.ARCHIVE_NAME } ?: true
+
+    /** Restos de descargas o instalaciones que no terminaron (`.part`, `.tmp`). */
+    fun temporaryFiles(): List<File> =
+        modelsRoot.listFiles { file -> file.name.endsWith(".part") || file.name.endsWith(".tmp") }?.toList().orEmpty()
+
+    /** Borra los restos, salvo que haya una instalación en curso que los esté usando. */
+    fun deleteTemporaryFiles() {
+        if (job?.isActive == true) return
+        temporaryFiles().forEach { it.deleteRecursively() }
+    }
+
     private suspend fun downloadAndInstall() {
         modelsRoot.mkdirs()
         val archive = File(modelsRoot, "${SupertonicModel.ARCHIVE_NAME}.part")
@@ -92,6 +114,7 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
             if (!isInstalled(staging)) throw IOException("El paquete no contiene todos los archivos esperados")
             modelDir.deleteRecursively()
             if (!staging.renameTo(modelDir)) throw IOException("No se pudo mover el modelo a su carpeta")
+            File(modelDir, VERSION_MARKER).writeText(SupertonicModel.ARCHIVE_NAME)
         } finally {
             archive.delete()
             _installProgress.value = null
@@ -138,6 +161,7 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
 
     private companion object {
         const val TAG = "VoxLibris.TTS"
+        const val VERSION_MARKER = "installed.txt"
     }
 
     private fun isInstalled(dir: File): Boolean = SupertonicModel.FILES.all { File(dir, it).length() > 0 }

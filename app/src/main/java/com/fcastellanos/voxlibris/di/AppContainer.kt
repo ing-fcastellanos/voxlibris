@@ -12,6 +12,7 @@ import com.fcastellanos.voxlibris.data.db.AppDatabase
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
 import com.fcastellanos.voxlibris.reading.Readium
+import com.fcastellanos.voxlibris.settings.AppPreferencesStore
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.tts.SherpaTtsEngineProvider
 import com.fcastellanos.voxlibris.tts.SherpaTtsRuntime
@@ -56,6 +57,7 @@ class AppContainer(context: Context) {
     }
     val importer: EpubImporter by lazy { EpubImporter(appContext, readium, storage, database.bookDao()) }
     val readingPreferences: ReadingPreferencesStore by lazy { ReadingPreferencesStore(appContext) }
+    val appPreferences: AppPreferencesStore by lazy { AppPreferencesStore(appContext) }
     val readerRepository: ReaderRepository by lazy { ReaderRepository(readium, bookRepository, storage) }
 
     // Voz on-device

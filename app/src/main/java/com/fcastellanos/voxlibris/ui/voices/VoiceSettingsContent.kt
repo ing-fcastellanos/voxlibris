@@ -68,7 +68,8 @@ import kotlin.math.roundToInt
 
 /**
  * Elección del lector (pantallas «Elegir voz» y «Voz predeterminada» del lienzo): el paquete de voces,
- * el modo de lectura, las diez voces en dos filas de colores, una muestra, la velocidad y la calidad.
+ * el modo de lectura, las diez voces en dos filas de colores, una muestra y, con [showGeneral], la
+ * velocidad, la calidad y el paquete instalado (desde Ajustes esas tres cosas tienen sus propias filas).
  * Con «Narrador y diálogos», dos chips dicen qué voz se está eligiendo. Se muestra como pantalla desde
  * la biblioteca ([onGround] verdadero, sobre `ground`), donde edita los valores por defecto, y como hoja
  * inferior desde el lector, donde edita los del libro abierto.
@@ -78,6 +79,7 @@ fun VoiceSettingsContent(
     viewModel: VoicesViewModel,
     modifier: Modifier = Modifier,
     onGround: Boolean = false,
+    showGeneral: Boolean = true,
 ) {
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -185,7 +187,7 @@ fun VoiceSettingsContent(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
+        if (showGeneral) Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
             // Se aplica al soltar: cada cambio reinicia la frase en curso en el lector.
             var sliderSpeed by remember(settings.speed) { mutableFloatStateOf(settings.speed.toFloat()) }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -202,7 +204,7 @@ fun VoiceSettingsContent(
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
+        if (showGeneral) Column(verticalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
             SectionLabel(stringResource(R.string.quality))
             VoxChipGroup {
                 listOf(
@@ -216,7 +218,7 @@ fun VoiceSettingsContent(
             Text(stringResource(R.string.quality_hint), style = t.caption, color = c.inkMuted)
         }
 
-        if (ready) {
+        if (showGeneral && ready) {
             SettingsList(onGround = onGround) {
                 SettingsRow(
                     title = stringResource(R.string.voices_ready),

@@ -20,5 +20,5 @@
     <string name="onboarding_voices_failed">No se pudieron descargar las voces: %1$s</string>
     <string name="onboarding_voices_retry">Reintentar</string>
     <string name="onboarding_continue">Continuar</string>
-    <string name="onboarding_later">Lo que falte se puede hacer después desde Lectores.</string>
+    <string name="onboarding_later">Lo que falte se puede hacer después desde Ajustes.</string>
 </resources>

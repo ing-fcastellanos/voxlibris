@@ -29,6 +29,10 @@ object SherpaTtsDefaults {
     const val STEPS_HIGH = 8
     /** Por encima de este factor de tiempo real (medido con 8 pasos) se pasa a 4 pasos. */
     const val AUTO_RTF_THRESHOLD = 0.5
+    /** Velocidades del menú desplegable (reproductor y Ajustes). El deslizador permite cualquier décima. */
+    val SPEED_PRESETS = listOf(0.8, 1.0, 1.2, 1.5, 1.7, 2.0)
+    /** Al cortar los silencios, cuánto se deja al final de cada frase (ms). */
+    const val TRIM_KEEP_MS = 120
 
     /** Voz de diálogos mientras nadie eligió una: la primera del género contrario al narrador, para que el cambio se note. */
     fun dialogueVoiceFor(narratorVoiceId: Int): Int {
@@ -46,6 +50,8 @@ data class SherpaTtsPreferences(
     val mode: ReadingMode? = null,
     /** Voz de los diálogos; solo se usa con [ReadingMode.NARRATOR_DIALOGUE]. [voiceId] es la del narrador. */
     val dialogueVoiceId: Int? = null,
+    /** Recortar el silencio que el modelo deja al final de cada frase, para acortar las pausas. */
+    val trimSilence: Boolean? = null,
 ) : TtsEngine.Preferences<SherpaTtsPreferences> {
 
     override fun plus(other: SherpaTtsPreferences): SherpaTtsPreferences = SherpaTtsPreferences(
@@ -55,6 +61,7 @@ data class SherpaTtsPreferences(
         quality = other.quality ?: quality,
         mode = other.mode ?: mode,
         dialogueVoiceId = other.dialogueVoiceId ?: dialogueVoiceId,
+        trimSilence = other.trimSilence ?: trimSilence,
     )
 }
 
@@ -81,6 +88,7 @@ data class SherpaTtsSettings(
     val quality: SherpaTtsQuality,
     /** Voz de los diálogos, o `null` si un solo lector lee todo. */
     val dialogueVoiceId: Int? = null,
+    val trimSilence: Boolean = true,
 ) : TtsEngine.Settings
 
 fun SherpaTtsPreferences.resolve(contentLanguage: Language?): SherpaTtsSettings = SherpaTtsSettings(
@@ -90,6 +98,7 @@ fun SherpaTtsPreferences.resolve(contentLanguage: Language?): SherpaTtsSettings 
     speed = (speed ?: SherpaTtsDefaults.SPEED).coerceIn(SherpaTtsDefaults.SPEED_RANGE),
     quality = quality ?: SherpaTtsQuality.AUTO,
     dialogueVoiceId = voiceChoice().takeIf { it.mode == ReadingMode.NARRATOR_DIALOGUE }?.dialogueVoiceId,
+    trimSilence = trimSilence ?: true,
 )
 
 /** Editor mínimo: Readium solo exige `preferences` y `clear()`; la interfaz usa los setters. */

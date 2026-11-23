@@ -136,7 +136,9 @@ class SherpaTtsEngine(
                     return@execute
                 }
                 val audio = try {
-                    synthesize(piece.text, language, settings, synthSpeed, voices[index])
+                    // El silencio final del último trozo es la pausa entre frases: se recorta solo si la
+                    // persona lo pidió. Entre trozos de la misma frase se recorta siempre, más abajo.
+                    synthesize(piece.text, language, settings, synthSpeed, voices[index], trimEnd = settings.trimSilence || index != pieces.lastIndex)
                 } catch (e: Throwable) {
                     Log.w(TAG, "Falló la síntesis de la frase ${requestId.value.take(8)}", e)
                     if (!request.cancelled) {
@@ -222,7 +224,7 @@ class SherpaTtsEngine(
         synthExecutor.shutdown()
     }
 
-    private fun synthesize(text: String, language: Language?, settings: SherpaTtsSettings, synthSpeed: Double, voiceId: Int): Pair<FloatArray, Int>? {
+    private fun synthesize(text: String, language: Language?, settings: SherpaTtsSettings, synthSpeed: Double, voiceId: Int, trimEnd: Boolean = true): Pair<FloatArray, Int>? {
         val clean = text.trim()
         if (clean.isEmpty()) return null
         val languageCode = when {
@@ -232,7 +234,7 @@ class SherpaTtsEngine(
         val steps = TtsMath.numSteps(settings.quality, calibratedRtf)
         val start = SystemClock.elapsedRealtime()
         val generated = runtime.synthesize(tts, clean, voiceId, synthSpeed, steps, languageCode)
-        val samples = TtsMath.trimTrailingSilence(generated.samples, generated.sampleRate)
+        val samples = if (trimEnd) TtsMath.trimTrailingSilence(generated.samples, generated.sampleRate, keepMs = SherpaTtsDefaults.TRIM_KEEP_MS) else generated.samples
         val synthSeconds = (SystemClock.elapsedRealtime() - start) / 1000.0
         val audioSeconds = samples.size.toDouble() / generated.sampleRate
         rtf.update(synthSeconds, audioSeconds)

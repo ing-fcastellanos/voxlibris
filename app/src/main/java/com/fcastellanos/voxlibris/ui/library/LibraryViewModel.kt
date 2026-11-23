@@ -32,6 +32,7 @@ sealed interface UiMessage {
     data class ImportFailed(val error: EpubImporter.ImportError) : UiMessage
     data class Deleted(val title: String) : UiMessage
     data class OpenFailed(val error: OpenBookError) : UiMessage
+    data object NothingToPlay : UiMessage
 }
 
 sealed interface UiEvent {
@@ -89,6 +90,21 @@ class LibraryViewModel(
             if (readAloud.isActiveFor(book.id)) readAloud.stop()
             repository.delete(book)
             _messages.send(UiMessage.Deleted(book.title))
+        }
+    }
+
+    /**
+     * «Reproduciendo» en la barra: abre lo que suena o, si nada suena, el libro que la tarjeta de
+     * Inicio ofrece seguir. Sin libros, avisa.
+     */
+    fun openNowPlaying() {
+        val target = readAloud.activeBookId.value
+            ?: books.value.firstOrNull { book -> book.progressPercent?.let { it < 100 } == true }?.id
+            ?: books.value.firstOrNull()?.id
+        if (target == null) {
+            viewModelScope.launch { _messages.send(UiMessage.NothingToPlay) }
+        } else {
+            openBook(target)
         }
     }
 

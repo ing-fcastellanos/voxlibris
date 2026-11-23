@@ -2,7 +2,7 @@
 
 Cubre las cinco fases de VoxLibris con el teléfono conectado por USB. Está pensada para hacerse en orden; cada fase asume que la anterior pasó. Al final hay una tabla para anotar resultados y qué adjuntar al reportar un fallo.
 
-Dispositivo de referencia: POCO X3 Pro (Snapdragon 860, MIUI). El Galaxy S25 sirve para repetir solo las pruebas de rendimiento (sección 5).
+Dispositivo de referencia: POCO X3 Pro (Snapdragon 860, MIUI). El Galaxy S25 sirve para repetir solo las pruebas de rendimiento (sección 6).
 
 ---
 
@@ -150,7 +150,29 @@ Verificada en el POCO X3 Pro el 17/11/2026: 4.1 a 4.10 OK. La 4.11 salió de esa
 
 ---
 
-## 5. Rendimiento
+## 5. Ajustes
+
+La barra de abajo tiene cuatro ítems: Inicio, Reproduciendo, Agregar libro y Ajustes. «Lectores» ya no existe como pantalla: lo que tenía está repartido entre Ajustes y Voz predeterminada.
+
+| ID | Prueba | Resultado esperado |
+|---|---|---|
+| 5.1 | Tocar «Ajustes» en la barra | Pantalla con tres grupos: Voz (Voz predeterminada, Velocidad, Alta calidad, Recortar silencios), Lectura (Apariencia del texto, Resaltar la frase que suena) y App (Tema, Voces y almacenamiento, Acerca de VoxLibris). La barra marca Ajustes; Inicio vuelve a la biblioteca. |
+| 5.2 | «Voz predeterminada» | Pantalla con el modo (Un lector / Narrador y diálogos), las diez voces y la muestra; sin velocidad ni calidad. La fila de Ajustes resume lo elegido: «Un lector · Lucía» o «Narrador y diálogos · Lucía y Mateo». Un libro con ajustes propios (hoja «¿Quién lee?» del lector) no cambia. |
+| 5.3 | «Velocidad» → elegir 1,5× | Menú desplegable con las mismas velocidades que el reproductor. El valor de la fila cambia y, si hay un libro sonando, la frase se reinicia a la velocidad nueva. |
+| 5.4 | «Alta calidad» encendido y apagado | Encendido, el logcat muestra `pasos=8` en la siguiente frase; apagado vuelve a Auto (`pasos=4` en el POCO). |
+| 5.5 | «Recortar silencios» apagado | Entre frases se nota una pausa algo más larga (el silencio que deja el modelo). Encendido, la lectura encadena como siempre. |
+| 5.6 | «Apariencia del texto» | Abre la misma hoja que el lector (tamaño, tipografía, fondo, interlineado, desplazamiento, estilos del editor). Lo que se cambia acá se ve al abrir cualquier libro, y el resumen de la fila («Literata · 110 % · fondo cálido») se actualiza. |
+| 5.7 | «Resaltar la frase que suena» apagado y escuchar | El texto no marca la frase en amarillo, pero la página sigue a la voz. Encendido vuelve a marcarla. |
+| 5.8 | «Tema» → Oscuro, Claro, Según el sistema | La biblioteca y Ajustes cambian al instante. El lector no cambia: sigue el fondo de lectura elegido en Apariencia. |
+| 5.9 | «Voces y almacenamiento» | Tarjeta con el total en uso y la barra repartida entre voces (tomate) y libros (cobalto), con leyenda. La fila del paquete dice «Instalada» en verde (o «Sin instalar»). «N libros» con su peso; «Borrar archivos temporales» con el peso de los restos (normalmente 0,0 MB) y, al tocarlo, aviso «Archivos temporales borrados». |
+| 5.10 | «Buscar actualizaciones» | Compara el paquete instalado con el que trae la app: aviso «Las voces están al día» y la fila pasa a decir «Última revisión: hoy». Solo ofrece actualizar cuando la app trae un paquete distinto. |
+| 5.11 | «Eliminar las voces» | Diálogo de confirmación con los MB; al confirmar, la fila del paquete pasa a «Sin instalar», la barra queda solo con libros y el reproductor pide descargar las voces al escuchar. |
+| 5.12 | «Acerca de VoxLibris» | Diálogo con la versión, qué es la app, con qué está hecha y «Ver el código», que abre el repositorio en el navegador. |
+| 5.13 | «Reproduciendo» en la barra | Con un libro sonando abre su lector; sin nada sonando, abre el libro de la tarjeta de Inicio; sin libros, avisa «Todavía no hay nada para escuchar». |
+
+---
+
+## 6. Rendimiento
 
 | Medición | Cómo | Valor esperado en POCO X3 Pro |
 |---|---|---|
@@ -163,7 +185,7 @@ Repetir la fila de RTF en el S25 para tener el techo.
 
 ---
 
-## 6. Registro de resultados
+## 7. Registro de resultados
 
 | ID | OK / FALLA | Observaciones |
 |---|---|---|

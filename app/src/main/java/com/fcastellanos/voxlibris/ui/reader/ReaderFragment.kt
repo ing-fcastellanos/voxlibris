@@ -306,8 +306,9 @@ class ReaderFragment : Fragment() {
                 val readAloud = viewModel.readAloud
                 val bookId = bookId
                 launch {
-                    combine(readAloud.activeBookId, readAloud.highlight, paper) { activeId, locator, current ->
-                        if (activeId == bookId && locator != null) locator to current else null
+                    val highlightSpoken = container.appPreferences.highlightSpokenSentence
+                    combine(readAloud.activeBookId, readAloud.highlight, paper, highlightSpoken) { activeId, locator, current, enabled ->
+                        if (enabled && activeId == bookId && locator != null) locator to current else null
                     }.distinctUntilChanged().collect { spoken ->
                         // La frase que suena va en `reading-now`, el mismo color en todas las pantallas.
                         val decorations = spoken?.let { (locator, current) ->

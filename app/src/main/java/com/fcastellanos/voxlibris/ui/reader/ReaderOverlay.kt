@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -24,10 +23,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -54,14 +51,11 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily as ComposeFontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fcastellanos.voxlibris.R
@@ -72,19 +66,16 @@ import com.fcastellanos.voxlibris.dictionary.DictionarySense
 import com.fcastellanos.voxlibris.dictionary.FormOf
 import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
+import com.fcastellanos.voxlibris.tts.SherpaTtsDefaults
 import com.fcastellanos.voxlibris.tts.SupertonicModel
 import com.fcastellanos.voxlibris.tts.VoiceModelManager
 import com.fcastellanos.voxlibris.tts.resolve
 import com.fcastellanos.voxlibris.ui.components.Banner
 import com.fcastellanos.voxlibris.ui.components.DictionaryCard
-import com.fcastellanos.voxlibris.ui.components.OptionCard
 import com.fcastellanos.voxlibris.ui.components.PlayButton
 import com.fcastellanos.voxlibris.ui.components.PlayerPill
 import com.fcastellanos.voxlibris.ui.components.ProgressRing
 import com.fcastellanos.voxlibris.ui.components.SectionLabel
-import com.fcastellanos.voxlibris.ui.components.SettingsDivider
-import com.fcastellanos.voxlibris.ui.components.SettingsList
-import com.fcastellanos.voxlibris.ui.components.SettingsSwitchRow
 import com.fcastellanos.voxlibris.ui.components.SheetHeader
 import com.fcastellanos.voxlibris.ui.components.StatusPill
 import com.fcastellanos.voxlibris.ui.components.StrongPill
@@ -103,7 +94,6 @@ import com.fcastellanos.voxlibris.ui.components.VoxMenuItem
 import com.fcastellanos.voxlibris.ui.components.VoxSlider
 import com.fcastellanos.voxlibris.ui.components.VoxTabs
 import com.fcastellanos.voxlibris.ui.components.VoxTextField
-import com.fcastellanos.voxlibris.ui.components.VoxTextIconButton
 import com.fcastellanos.voxlibris.ui.components.formatSpeed
 import com.fcastellanos.voxlibris.ui.components.voxShadow
 import com.fcastellanos.voxlibris.ui.theme.VoxDimens
@@ -113,16 +103,11 @@ import com.fcastellanos.voxlibris.ui.voices.VoicesViewModel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
-import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.epub.EpubPreferencesEditor
-import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 
 private val SLEEP_TIMER_OPTIONS = listOf(10, 20, 30, 45, 60)
-private val SPEED_PRESETS = listOf(0.8, 1.0, 1.2, 1.5, 1.7, 2.0)
-private val LINE_HEIGHTS = listOf(R.string.reader_line_compact to 1.2, R.string.reader_line_normal to 1.5, R.string.reader_line_wide to 1.8)
 
 /**
  * Interfaz del lector según la pantalla «Texto completo» del lienzo de diseño: barra superior con el
@@ -279,7 +264,6 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
     if (showAppearance) {
         AppearanceSheet(
             preferences = preferences,
-            createEditor = viewModel::createPreferencesEditor,
             onChange = viewModel::updatePreferences,
             onDismiss = { showAppearance = false },
         )
@@ -471,7 +455,7 @@ private fun ListeningControls(
             Box {
                 chip()
                 VoxDropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }, label = stringResource(R.string.reader_speed)) {
-                    SPEED_PRESETS.forEach { value ->
+                    SherpaTtsDefaults.SPEED_PRESETS.forEach { value ->
                         VoxMenuItem(
                             text = formatSpeed(value),
                             onClick = {
@@ -722,127 +706,6 @@ private fun EmptyText(text: String) {
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().padding(vertical = VoxDimens.space6),
     )
-}
-
-/** Apariencia del texto (pantalla «Apariencia» del lienzo): tamaño, tipografía, fondo e interlineado. */
-@OptIn(ExperimentalReadiumApi::class)
-@Composable
-private fun AppearanceSheet(
-    preferences: EpubPreferences,
-    createEditor: () -> EpubPreferencesEditor?,
-    onChange: (EpubPreferences) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val editor = remember(preferences) { createEditor() } ?: return
-    fun commit() = onChange(editor.preferences)
-    val c = VoxLibrisTheme.colors
-    val t = VoxLibrisTheme.typography
-    val paper = preferences.paper()
-    val context = LocalContext.current
-    val literata = remember { ComposeFontFamily(Font("fonts/Literata.ttf", context.assets)) }
-    val figtree = remember { ComposeFontFamily(Font(R.font.figtree)) }
-
-    VoxBottomSheet(onDismissRequest = onDismiss) {
-        SheetHeader(stringResource(R.string.reader_appearance), tag = stringResource(R.string.reader_appearance_tag))
-        Column(
-            Modifier
-                .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel(stringResource(R.string.font_size))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VoxDimens.space3)) {
-                    VoxTextIconButton("A−", stringResource(R.string.reader_font_smaller), onClick = { editor.fontSize.decrement(); commit() })
-                    Text(
-                        editor.fontSize.formatValue(editor.fontSize.effectiveValue),
-                        style = t.emphasis,
-                        color = c.ink,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f),
-                    )
-                    VoxTextIconButton("A+", stringResource(R.string.reader_font_bigger), onClick = { editor.fontSize.increment(); commit() })
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel(stringResource(R.string.reader_font_family))
-                val families = listOf(
-                    Triple(null as FontFamily?, stringResource(R.string.reader_font_publisher), ComposeFontFamily.Default),
-                    Triple(ReaderFonts.Figtree, "Figtree", figtree),
-                    Triple(ReaderFonts.Literata, "Literata", literata),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
-                    families.forEach { (family, label, sampleFont) ->
-                        OptionCard(
-                            selected = preferences.fontFamily == family,
-                            onClick = { editor.fontFamily.set(family); commit() },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text("Aa", style = t.title.copy(fontFamily = sampleFont, fontSize = 26.sp, lineHeight = 32.sp), color = c.ink)
-                            Text(label, style = t.caption, color = c.ink, maxLines = 1)
-                        }
-                    }
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel(stringResource(R.string.reader_paper))
-                val papers = listOf(
-                    ReaderPaper.Warm to R.string.reader_paper_warm,
-                    ReaderPaper.White to R.string.reader_paper_white,
-                    ReaderPaper.Dark to R.string.reader_paper_dark,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(VoxDimens.space2)) {
-                    papers.forEach { (option, label) ->
-                        OptionCard(
-                            selected = paper == option,
-                            onClick = { onChange(editor.preferences.withPaper(option)) },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Box(
-                                Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(option.background)
-                                    .border(1.dp, c.line, CircleShape),
-                            )
-                            Text(stringResource(label), style = t.caption, color = c.ink, maxLines = 1)
-                        }
-                    }
-                }
-            }
-
-            if (editor.lineHeight.isEffective) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionLabel(stringResource(R.string.line_height))
-                    val currentLine = editor.lineHeight.effectiveValue
-                    val nearest = LINE_HEIGHTS.minBy { abs(it.second - currentLine) }.second
-                    VoxChipGroup {
-                        LINE_HEIGHTS.forEach { (label, value) ->
-                            VoxChip(stringResource(label), selected = value == nearest, onClick = { editor.lineHeight.set(value); commit() })
-                        }
-                    }
-                }
-            }
-
-            SettingsList {
-                SettingsSwitchRow(
-                    title = stringResource(R.string.scroll_mode),
-                    subtitle = stringResource(R.string.reader_scroll_hint),
-                    checked = editor.scroll.effectiveValue,
-                    onCheckedChange = { editor.scroll.set(it); commit() },
-                )
-                SettingsDivider()
-                SettingsSwitchRow(
-                    title = stringResource(R.string.publisher_styles),
-                    subtitle = stringResource(R.string.reader_publisher_styles_hint),
-                    checked = editor.publisherStyles.effectiveValue,
-                    onCheckedChange = { editor.publisherStyles.set(it); commit() },
-                )
-            }
-        }
-    }
 }
 
 /** Resaltado tocado en el texto: la cita, su nota y qué hacer con él. */

@@ -32,6 +32,7 @@ class TtsPreferencesStore(context: Context) {
             preferences.quality?.let { putString(KEY_QUALITY, it.name) } ?: remove(KEY_QUALITY)
             preferences.mode?.let { putString(KEY_MODE, it.name) } ?: remove(KEY_MODE)
             preferences.dialogueVoiceId?.let { putInt(KEY_DIALOGUE_VOICE, it) } ?: remove(KEY_DIALOGUE_VOICE)
+            preferences.trimSilence?.let { putBoolean(KEY_TRIM_SILENCE, it) } ?: remove(KEY_TRIM_SILENCE)
         }.apply()
     }
 
@@ -41,6 +42,7 @@ class TtsPreferencesStore(context: Context) {
         quality = prefs.getString(KEY_QUALITY, null)?.let { runCatching { SherpaTtsQuality.valueOf(it) }.getOrNull() },
         mode = prefs.getString(KEY_MODE, null)?.let { runCatching { ReadingMode.valueOf(it) }.getOrNull() },
         dialogueVoiceId = if (prefs.contains(KEY_DIALOGUE_VOICE)) prefs.getInt(KEY_DIALOGUE_VOICE, 0) else null,
+        trimSilence = if (prefs.contains(KEY_TRIM_SILENCE)) prefs.getBoolean(KEY_TRIM_SILENCE, true) else null,
     )
 
     private companion object {
@@ -49,6 +51,7 @@ class TtsPreferencesStore(context: Context) {
         const val KEY_QUALITY = "quality"
         const val KEY_MODE = "mode"
         const val KEY_DIALOGUE_VOICE = "dialogue_voice_id"
+        const val KEY_TRIM_SILENCE = "trim_silence"
         const val KEY_RTF = "calibrated_rtf"
     }
 }

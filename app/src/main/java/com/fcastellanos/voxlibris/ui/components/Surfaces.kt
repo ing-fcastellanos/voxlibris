@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -145,19 +146,23 @@ fun SheetHeader(title: String, modifier: Modifier = Modifier, tag: String? = nul
     }
 }
 
-/** Etiqueta chica de contexto (`vx-tag`). */
+/** Etiqueta chica de contexto (`vx-tag`). Por defecto en `surface-muted`; un estado puede teñirla. */
 @Composable
-fun Tag(text: String, modifier: Modifier = Modifier) {
-    val c = VoxLibrisTheme.colors
+fun Tag(
+    text: String,
+    modifier: Modifier = Modifier,
+    containerColor: Color = VoxLibrisTheme.colors.surfaceMuted,
+    contentColor: Color = VoxLibrisTheme.colors.ink,
+) {
     Box(
         modifier
             .heightIn(min = 28.dp)
             .clip(RoundedCornerShape(VoxDimens.radiusPill))
-            .background(c.surfaceMuted)
+            .background(containerColor)
             .padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = VoxLibrisTheme.typography.caption, color = c.ink, maxLines = 1)
+        Text(text, style = VoxLibrisTheme.typography.caption, color = contentColor, maxLines = 1)
     }
 }
 
