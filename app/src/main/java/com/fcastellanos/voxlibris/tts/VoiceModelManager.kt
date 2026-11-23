@@ -1,7 +1,17 @@
 package com.fcastellanos.voxlibris.tts
 
+import android.Manifest
+import android.app.PendingIntent
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.SystemClock
 import android.util.Log
+import androidx.core.app.NotificationChannelCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import com.fcastellanos.voxlibris.R
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -23,9 +33,13 @@ import kotlinx.coroutines.launch
  */
 class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
 
+    private val appContext: Context = context.applicationContext
+
     sealed interface State {
         data object NotInstalled : State
-        data class Downloading(val progress: Float) : State
+
+        /** Avance de 0 a 1, bytes recibidos y totales, y segundos que faltan según el ritmo medio; null al principio. */
+        data class Downloading(val progress: Float, val receivedBytes: Long = 0L, val totalBytes: Long = SupertonicModel.SIZE_BYTES, val etaSeconds: Long? = null) : State
         data object Installing : State
         data class Ready(val dir: File) : State
         data class Failed(val message: String) : State
@@ -43,7 +57,16 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
 
     private var job: Job? = null
 
+    /** Cierto si la persona pidió «Seguir en segundo plano»: al terminar se avisa con una notificación. */
+    @Volatile
+    private var notifyWhenReady = false
+
     fun readyModelDir(): File? = modelDir.takeIf { isInstalled(it) }
+
+    /** Avisar con una notificación cuando las voces queden listas (si la app tiene permiso). */
+    fun requestReadyNotification() {
+        notifyWhenReady = true
+    }
 
     fun install() {
         if (job?.isActive == true) return
@@ -57,14 +80,43 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
                 downloadAndInstall()
                 Log.i(TAG, "Voces instaladas en $modelDir")
                 _state.value = State.Ready(modelDir)
+                if (notifyWhenReady) notifyReady()
             } catch (e: CancellationException) {
                 _state.value = State.NotInstalled
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Falló la instalación de voces", e)
                 _state.value = State.Failed(e.message ?: e.javaClass.simpleName)
+            } finally {
+                notifyWhenReady = false
             }
         }
+    }
+
+    private fun notifyReady() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(appContext, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val manager = NotificationManagerCompat.from(appContext)
+        manager.createNotificationChannel(
+            NotificationChannelCompat.Builder(NOTIFICATION_CHANNEL, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+                .setName(appContext.getString(R.string.notification_voices_channel))
+                .build(),
+        )
+        val launch = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
+        val pending = launch?.let {
+            PendingIntent.getActivity(appContext, 0, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
+        val notification = NotificationCompat.Builder(appContext, NOTIFICATION_CHANNEL)
+            .setSmallIcon(R.drawable.ic_vx_voice)
+            .setContentTitle(appContext.getString(R.string.notification_voices_ready_title))
+            .setContentText(appContext.getString(R.string.notification_voices_ready_body))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        runCatching { manager.notify(NOTIFICATION_ID, notification) }
     }
 
     fun cancel() {
@@ -134,6 +186,7 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
             val digest = MessageDigest.getInstance("SHA-256")
             var received = 0L
             var lastReported = -1
+            val startedAt = SystemClock.elapsedRealtime()
             connection.inputStream.use { input ->
                 target.outputStream().use { output ->
                     val buffer = ByteArray(64 * 1024)
@@ -147,7 +200,10 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
                         val percent = (received * 100 / total).toInt()
                         if (percent != lastReported) {
                             lastReported = percent
-                            _state.value = State.Downloading(received.toFloat() / total)
+                            // El ritmo medio desde el arranque: estable y suficiente para «≈ 1 min».
+                            val elapsed = (SystemClock.elapsedRealtime() - startedAt) / 1000.0
+                            val eta = if (elapsed >= ETA_AFTER_SECONDS && received > 0) ((total - received) * elapsed / received).toLong() else null
+                            _state.value = State.Downloading(received.toFloat() / total, received, total, eta)
                         }
                     }
                 }
@@ -162,6 +218,9 @@ class VoiceModelManager(context: Context, private val scope: CoroutineScope) {
     private companion object {
         const val TAG = "VoxLibris.TTS"
         const val VERSION_MARKER = "installed.txt"
+        const val NOTIFICATION_CHANNEL = "voices"
+        const val NOTIFICATION_ID = 2001
+        const val ETA_AFTER_SECONDS = 3.0
     }
 
     private fun isInstalled(dir: File): Boolean = SupertonicModel.FILES.all { File(dir, it).length() > 0 }

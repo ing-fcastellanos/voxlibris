@@ -107,6 +107,7 @@ class ReadAloudManager(
     val sleepTimerEndsAt: StateFlow<Long?> = _sleepTimerEndsAt.asStateFlow()
 
     val modelState: StateFlow<VoiceModelManager.State> = models.state
+    val modelInstallProgress: StateFlow<Float?> = models.installProgress
     /** Preferencias con las que suena el libro activo (las suyas, si las tiene); sin libro activo, las de por defecto. */
     private val _preferences = MutableStateFlow(ttsPreferences.preferences.value)
     val preferences: StateFlow<SherpaTtsPreferences> = _preferences.asStateFlow()
@@ -324,6 +325,8 @@ class ReadAloudManager(
     }
 
     fun downloadVoices() = models.install()
+
+    fun requestVoicesReadyNotification() = models.requestReadyNotification()
 
     /** Pausa la lectura pasados `minutes`; null cancela el temporizador. */
     fun setSleepTimer(minutes: Int?) {

@@ -65,6 +65,7 @@ import com.fcastellanos.voxlibris.reading.OpenBookError
 import com.fcastellanos.voxlibris.tts.ReadAloudManager
 import com.fcastellanos.voxlibris.tts.SherpaTtsDefaults
 import com.fcastellanos.voxlibris.tts.SupertonicModel
+import com.fcastellanos.voxlibris.tts.VoiceModelManager
 import com.fcastellanos.voxlibris.ui.MainNavBar
 import com.fcastellanos.voxlibris.ui.MainSection
 import com.fcastellanos.voxlibris.ui.components.Banner
@@ -130,6 +131,7 @@ fun LibraryScreen(
     val status by viewModel.readAloud.status.collectAsStateWithLifecycle()
     val remainingSeconds by viewModel.readAloud.remainingSeconds.collectAsStateWithLifecycle()
     val ttsPreferences by viewModel.readAloud.preferences.collectAsStateWithLifecycle()
+    val modelState by viewModel.readAloud.modelState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -350,6 +352,19 @@ fun LibraryScreen(
     }
 
     infoBook?.let { book -> BookInfoDialog(book = book, onDismiss = { infoBook = null }) }
+
+    if (status == ReadAloudManager.Status.NeedsModel &&
+        modelState !is VoiceModelManager.State.Downloading && modelState !is VoiceModelManager.State.Installing
+    ) {
+        VoxConfirmDialog(
+            title = stringResource(R.string.tts_need_model_title),
+            body = stringResource(R.string.tts_need_model_body, SupertonicModel.SIZE_MB),
+            confirmLabel = stringResource(R.string.download),
+            onConfirm = viewModel.readAloud::downloadVoices,
+            onDismiss = viewModel.readAloud::stop,
+            destructive = false,
+        )
+    }
 
     contents?.let { state ->
         ContentsSheet(

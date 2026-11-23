@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fcastellanos.voxlibris.onboarding.OnboardingStore
 import com.fcastellanos.voxlibris.settings.ThemeMode
+import com.fcastellanos.voxlibris.tts.VoiceModelManager
 import com.fcastellanos.voxlibris.ui.library.LibraryScreen
 import com.fcastellanos.voxlibris.ui.library.LibraryViewModel
 import com.fcastellanos.voxlibris.ui.library.SearchScreen
@@ -33,6 +34,7 @@ import com.fcastellanos.voxlibris.ui.settings.SettingsViewModel
 import com.fcastellanos.voxlibris.ui.settings.StorageScreen
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 import com.fcastellanos.voxlibris.ui.voices.DefaultVoiceScreen
+import com.fcastellanos.voxlibris.ui.voices.PreparingVoiceScreen
 import com.fcastellanos.voxlibris.ui.voices.VoicesViewModel
 
 /** Pantallas de la actividad principal; el lector es otra actividad. */
@@ -96,6 +98,25 @@ class MainActivity : ComponentActivity() {
         val activeBookId by container.readAloud.activeBookId.collectAsStateWithLifecycle()
         LaunchedEffect(activeBookId) {
             if (screen == MainScreen.PLAYER && activeBookId != null && activeBookId != playerBookId) playerBookId = activeBookId!!
+        }
+        // Mientras se descargan las voces, «Preparando la voz» tapa lo demás hasta que se la minimiza.
+        val modelState by container.voiceModels.state.collectAsStateWithLifecycle()
+        val installProgress by container.voiceModels.installProgress.collectAsStateWithLifecycle()
+        var preparingMinimized by rememberSaveable { mutableStateOf(false) }
+        val preparing = modelState is VoiceModelManager.State.Downloading || modelState is VoiceModelManager.State.Installing
+        LaunchedEffect(preparing) { if (!preparing) preparingMinimized = false }
+        if (preparing && !preparingMinimized) {
+            PreparingVoiceScreen(
+                state = modelState,
+                installProgress = installProgress,
+                onMinimize = { preparingMinimized = true },
+                onContinueInBackground = {
+                    container.voiceModels.requestReadyNotification()
+                    preparingMinimized = true
+                },
+                onRetry = container.voiceModels::install,
+            )
+            return
         }
         when (screen) {
             MainScreen.PLAYER -> {

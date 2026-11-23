@@ -98,6 +98,7 @@ import com.fcastellanos.voxlibris.ui.components.formatSpeed
 import com.fcastellanos.voxlibris.ui.components.voxShadow
 import com.fcastellanos.voxlibris.ui.theme.VoxDimens
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
+import com.fcastellanos.voxlibris.ui.voices.PreparingVoiceScreen
 import com.fcastellanos.voxlibris.ui.voices.VoiceSettingsContent
 import com.fcastellanos.voxlibris.ui.voices.VoicesViewModel
 import kotlin.math.abs
@@ -215,6 +216,22 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
                     )
                 }
             }
+        }
+        var preparingMinimized by rememberSaveable { mutableStateOf(false) }
+        val preparing = modelState is VoiceModelManager.State.Downloading || modelState is VoiceModelManager.State.Installing
+        LaunchedEffect(preparing) { if (!preparing) preparingMinimized = false }
+        if (preparing && !preparingMinimized) {
+            val installProgress by readAloud.modelInstallProgress.collectAsStateWithLifecycle()
+            PreparingVoiceScreen(
+                state = modelState,
+                installProgress = installProgress,
+                onMinimize = { preparingMinimized = true },
+                onContinueInBackground = {
+                    readAloud.requestVoicesReadyNotification()
+                    preparingMinimized = true
+                },
+                onRetry = readAloud::downloadVoices,
+            )
         }
         definition?.let { state ->
             DefinitionCard(

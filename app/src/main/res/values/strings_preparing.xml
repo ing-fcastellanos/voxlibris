@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Preparando la voz -->
+    <string name="preparing_title">Preparando la voz</string>
+    <string name="preparing_body">VoxLibris lee con voces que se generan en el teléfono. Se descargan una sola vez y después funcionan sin conexión.</string>
+    <string name="preparing_downloading">Descargando voces en español</string>
+    <string name="preparing_bytes">%1$d de %2$d MB</string>
+    <string name="preparing_eta">≈ %1$s con esta conexión</string>
+    <string name="preparing_eta_seconds">%1$d s</string>
+    <string name="preparing_eta_minutes">%1$d min</string>
+    <string name="preparing_installing">Instalando las voces</string>
+    <string name="preparing_point_voices">10 voces, 5 femeninas y 5 masculinas</string>
+    <string name="preparing_point_offline">Funcionan en modo avión</string>
+    <string name="preparing_point_change">Podés cambiar de voz cuando quieras</string>
+    <string name="preparing_background">Seguir en segundo plano</string>
+    <string name="preparing_notify_hint">Te avisamos cuando esté lista para escuchar.</string>
+    <string name="preparing_failed">No se pudieron descargar las voces: %1$s</string>
+    <string name="notification_voices_channel">Voces</string>
+    <string name="notification_voices_ready_title">Voces listas</string>
+    <string name="notification_voices_ready_body">Ya podés escuchar tus libros sin conexión.</string>
+</resources>

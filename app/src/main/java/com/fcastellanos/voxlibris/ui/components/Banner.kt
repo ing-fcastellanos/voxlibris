@@ -22,7 +22,7 @@ import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 
 /** Tarjeta de estado para una tarea que tarda (`vx-banner`): qué pasa, un detalle y el avance del audio o la tarea. */
 @Composable
-fun Banner(title: String, modifier: Modifier = Modifier, detail: String? = null, progress: Float? = null) {
+fun Banner(title: String, modifier: Modifier = Modifier, detail: String? = null, progress: Float? = null, footer: String? = null) {
     val c = VoxLibrisTheme.colors
     Column(
         modifier
@@ -40,5 +40,6 @@ fun Banner(title: String, modifier: Modifier = Modifier, detail: String? = null,
             }
         }
         ProgressBar(progress, fillColor = c.tomato)
+        if (footer != null) Text(footer, style = VoxLibrisTheme.typography.caption, color = c.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
