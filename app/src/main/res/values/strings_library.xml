@@ -65,4 +65,14 @@
     <string name="info_unknown">Sin dato</string>
     <string name="msg_marked_finished">“%1$s” quedó como terminado</string>
     <string name="msg_marked_unfinished">“%1$s” vuelve a estar en curso</string>
+
+    <!-- Racha -->
+    <plurals name="streak_days">
+        <item quantity="one">%1$d día seguido</item>
+        <item quantity="other">%1$d días seguidos</item>
+    </plurals>
+    <string name="streak_week">%1$s escuchadas esta semana</string>
+    <string name="streak_week_none">Nada escuchado esta semana todavía</string>
+    <string name="listened_minutes">%1$d min</string>
+    <string name="listened_hours_minutes">%1$d h %2$d min</string>
 </resources>

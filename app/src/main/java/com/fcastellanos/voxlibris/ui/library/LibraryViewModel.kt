@@ -16,6 +16,8 @@ import com.fcastellanos.voxlibris.data.LibraryQuery.search
 import com.fcastellanos.voxlibris.data.LibraryQuery.visible
 import com.fcastellanos.voxlibris.data.LibraryShelf
 import com.fcastellanos.voxlibris.data.LibrarySort
+import com.fcastellanos.voxlibris.data.ListeningStatsStore
+import com.fcastellanos.voxlibris.data.ListeningStreak
 import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.reading.OpenBookError
 import com.fcastellanos.voxlibris.reading.OpenBookResult
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -79,8 +82,14 @@ class LibraryViewModel(
     private val readerRepository: ReaderRepository,
     private val highlightRepository: HighlightRepository,
     private val preferences: AppPreferencesStore,
+    private val listeningStats: ListeningStatsStore,
     val readAloud: ReadAloudManager,
 ) : ViewModel() {
+
+    /** Racha y tiempo de escucha de la semana; se recalcula con cada anotación. */
+    val streak: StateFlow<ListeningStreak.Summary> = listeningStats.version
+        .map { listeningStats.summary() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), listeningStats.summary())
 
     /** Todos los libros, en el orden de la base: último abierto primero. */
     val books: StateFlow<List<Book>> = repository.books
@@ -332,6 +341,7 @@ class LibraryViewModel(
                     container.readerRepository,
                     container.highlightRepository,
                     container.appPreferences,
+                    container.listeningStats,
                     container.readAloud,
                 )
             }

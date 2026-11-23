@@ -6,8 +6,10 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import com.fcastellanos.voxlibris.data.BookRepository
+import com.fcastellanos.voxlibris.data.ListeningStatsStore
 import com.fcastellanos.voxlibris.reading.ChapterRef
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import kotlin.coroutines.resume
@@ -35,6 +37,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -60,6 +63,7 @@ class ReadAloudManager(
     private val ttsPreferences: TtsPreferencesStore,
     private val readerRepository: ReaderRepository,
     private val bookRepository: BookRepository,
+    private val listeningStats: ListeningStatsStore,
 ) : TtsNavigator.Listener {
 
     sealed interface Status {
@@ -140,9 +144,22 @@ class ReadAloudManager(
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VoxLibris:tts")
             .apply { setReferenceCounted(false) }
 
+    /** Desde cuándo suena sin parar (reloj monótono), para anotar el tiempo de escucha; null en pausa. */
+    private var playingSince: Long? = null
+
     init {
         scope.launch {
             ttsPreferences.preferences.collect { if (navigator == null) _preferences.value = it }
+        }
+        // Tiempo de escucha: se anota al salir de «Leyendo» y, por si la app muere, cada minuto.
+        scope.launch {
+            _status.collect { status -> trackListening(status == Status.Playing) }
+        }
+        scope.launch {
+            while (true) {
+                delay(LISTENING_FLUSH_MS)
+                if (playingSince != null) flushListening(keepGoing = true)
+            }
         }
         // Si se pidió escuchar sin voces instaladas, arrancamos solos cuando terminen de instalarse.
         scope.launch {
@@ -519,6 +536,22 @@ class ReadAloudManager(
         }
     }
 
+    private fun trackListening(playing: Boolean) {
+        if (playing) {
+            if (playingSince == null) playingSince = SystemClock.elapsedRealtime()
+        } else {
+            flushListening(keepGoing = false)
+        }
+    }
+
+    private fun flushListening(keepGoing: Boolean) {
+        val since = playingSince ?: return
+        val now = SystemClock.elapsedRealtime()
+        val seconds = (now - since) / 1000L
+        if (seconds > 0L) listeningStats.add(LocalDate.now(), seconds)
+        playingSince = if (keepGoing) now else null
+    }
+
     private fun updateWakeLock(active: Boolean) {
         if (active) {
             if (!wakeLock.isHeld) wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
@@ -571,5 +604,6 @@ class ReadAloudManager(
         const val STYLE_SAMPLE_PARAGRAPHS = 600
         const val STYLE_ENOUGH_DASHES = 5
         const val STYLE_ENOUGH_QUOTES = 8
+        const val LISTENING_FLUSH_MS = 60_000L
     }
 }

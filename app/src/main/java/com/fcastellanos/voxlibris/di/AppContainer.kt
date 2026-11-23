@@ -8,6 +8,7 @@ import com.fcastellanos.voxlibris.data.EpubImporter
 import com.fcastellanos.voxlibris.data.HighlightRepository
 import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
 import com.fcastellanos.voxlibris.data.LibraryStorage
+import com.fcastellanos.voxlibris.data.ListeningStatsStore
 import com.fcastellanos.voxlibris.data.db.AppDatabase
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
@@ -58,6 +59,7 @@ class AppContainer(context: Context) {
     val importer: EpubImporter by lazy { EpubImporter(appContext, readium, storage, database.bookDao()) }
     val readingPreferences: ReadingPreferencesStore by lazy { ReadingPreferencesStore(appContext) }
     val appPreferences: AppPreferencesStore by lazy { AppPreferencesStore(appContext) }
+    val listeningStats: ListeningStatsStore by lazy { ListeningStatsStore(appContext) }
     val readerRepository: ReaderRepository by lazy { ReaderRepository(readium, bookRepository, storage) }
 
     // Voz on-device
@@ -66,6 +68,6 @@ class AppContainer(context: Context) {
     val ttsRuntime: SherpaTtsRuntime by lazy { SherpaTtsRuntime(voiceModels, ttsPreferences) }
     val ttsEngineProvider: SherpaTtsEngineProvider by lazy { SherpaTtsEngineProvider(ttsRuntime) }
     val readAloud: ReadAloudManager by lazy {
-        ReadAloudManager(application, ttsEngineProvider, voiceModels, ttsPreferences, readerRepository, bookRepository)
+        ReadAloudManager(application, ttsEngineProvider, voiceModels, ttsPreferences, readerRepository, bookRepository, listeningStats)
     }
 }

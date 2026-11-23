@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -77,6 +78,8 @@ import com.fcastellanos.voxlibris.ui.components.ContinueCard
 import com.fcastellanos.voxlibris.ui.components.CoverShape
 import com.fcastellanos.voxlibris.ui.components.CoverSize
 import com.fcastellanos.voxlibris.ui.components.MiniPlayer
+import com.fcastellanos.voxlibris.ui.components.StreakCard
+import com.fcastellanos.voxlibris.ui.components.StreakDot
 import com.fcastellanos.voxlibris.ui.components.VoxBottomSheet
 import com.fcastellanos.voxlibris.ui.components.VoxButton
 import com.fcastellanos.voxlibris.ui.components.VoxButtonSize
@@ -124,6 +127,7 @@ fun LibraryScreen(
     val hideFinished by viewModel.hideFinished.collectAsStateWithLifecycle()
     val counts by viewModel.shelfCounts.collectAsStateWithLifecycle()
     val contents by viewModel.contents.collectAsStateWithLifecycle()
+    val streak by viewModel.streak.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val openingBookId by viewModel.openingBookId.collectAsStateWithLifecycle()
     val activeBookId by viewModel.readAloud.activeBookId.collectAsStateWithLifecycle()
@@ -246,6 +250,20 @@ fun LibraryScreen(
                             onVoice = onOpenVoices,
                             chapterText = chapterText(featured),
                             remainingText = remainingSeconds?.takeIf { isActive }?.let { formatRemaining(it) },
+                            modifier = Modifier.padding(bottom = VoxDimens.space6),
+                        )
+                    }
+                }
+                if (!streak.isEmpty) {
+                    item(key = "streak") {
+                        StreakCard(
+                            title = pluralStringResource(R.plurals.streak_days, streak.streakDays, streak.streakDays),
+                            subtitle = if (streak.weekSeconds > 0L) {
+                                stringResource(R.string.streak_week, formatListened(streak.weekSeconds))
+                            } else {
+                                stringResource(R.string.streak_week_none)
+                            },
+                            days = streak.week.map { StreakDot(it.listened, it.isToday) },
                             modifier = Modifier.padding(bottom = VoxDimens.space6),
                         )
                     }
@@ -394,6 +412,13 @@ fun LibraryScreen(
             onDismiss = { bookToDelete = null },
         )
     }
+}
+
+/** «2 h 40 min» o «35 min» escuchados. */
+@Composable
+private fun formatListened(seconds: Long): String {
+    val minutes = (seconds / 60).toInt()
+    return if (minutes < 60) stringResource(R.string.listened_minutes, minutes) else stringResource(R.string.listened_hours_minutes, minutes / 60, minutes % 60)
 }
 
 /** «Capítulo 1 de 52» cuando la posición guardada trae el capítulo. */

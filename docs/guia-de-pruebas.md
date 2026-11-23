@@ -81,6 +81,7 @@ Los mensajes propios de la app salen con la etiqueta `VoxLibris.TTS`: carga del 
 | 1.17 | «Capítulos y marcadores» desde el menú | Hoja de Contenido con el índice y los resaltados sin abrir el lector; tocar un capítulo o un resaltado arranca la voz ahí. «Editar nota» abre el lector. |
 | 1.18 | «Marcar como terminado» | Aviso «“…” quedó como terminado»; el libro pasa al estante Terminados y dice «Terminado»; la tarjeta de Inicio pasa al siguiente libro sin terminar. El menú ofrece «Marcar como no terminado». Si estaba sonando, la voz se detiene. |
 | 1.19 | «Información del libro» | Diálogo con autor, idioma, cuándo se agregó, tamaño del archivo, avance y el título del capítulo actual. |
+| 1.21 | Escuchar un par de minutos y volver a Inicio | Debajo de la tarjeta del libro actual aparece la racha: «1 día seguido», «N min escuchadas esta semana» y siete puntos de lunes a domingo, con hoy relleno en naranja y los días anteriores con escucha en negro. Al día siguiente sin escuchar, hoy es un anillo naranja y la racha sigue viva hasta que termine el día. Sin ninguna escucha registrada, la tarjeta no aparece. |
 | 1.20 | Importar dos o tres EPUB a la vez | El aviso de arriba dice «Importando 2 de 3…», el nombre del archivo en curso y una barra que avanza. Al terminar: «3 libros agregados a la biblioteca». Con uno solo, el aviso trae «Escuchar», que arranca la voz en ese libro. |
 
 ---
