@@ -23,6 +23,7 @@ import com.fcastellanos.voxlibris.onboarding.OnboardingStore
 import com.fcastellanos.voxlibris.settings.ThemeMode
 import com.fcastellanos.voxlibris.ui.library.LibraryScreen
 import com.fcastellanos.voxlibris.ui.library.LibraryViewModel
+import com.fcastellanos.voxlibris.ui.library.SearchScreen
 import com.fcastellanos.voxlibris.ui.onboarding.OnboardingScreen
 import com.fcastellanos.voxlibris.ui.onboarding.OnboardingViewModel
 import com.fcastellanos.voxlibris.ui.player.PlayerScreen
@@ -35,7 +36,7 @@ import com.fcastellanos.voxlibris.ui.voices.DefaultVoiceScreen
 import com.fcastellanos.voxlibris.ui.voices.VoicesViewModel
 
 /** Pantallas de la actividad principal; el lector es otra actividad. */
-private enum class MainScreen { LIBRARY, PLAYER, SETTINGS, DEFAULT_VOICE, STORAGE }
+private enum class MainScreen { LIBRARY, SEARCH, PLAYER, SETTINGS, DEFAULT_VOICE, STORAGE }
 
 private val EPUB_MIME_TYPES = arrayOf("application/epub+zip")
 
@@ -115,6 +116,14 @@ class MainActivity : ComponentActivity() {
                 onNowPlaying = nowPlaying,
                 onOpenSettings = { screen = MainScreen.SETTINGS },
                 onOpenVoices = { screen = MainScreen.DEFAULT_VOICE },
+                onSearch = { screen = MainScreen.SEARCH },
+            )
+            MainScreen.SEARCH -> SearchScreen(
+                viewModel = viewModel,
+                onBack = { screen = MainScreen.LIBRARY },
+                onNowPlaying = nowPlaying,
+                onAddBook = addBook,
+                onOpenSettings = { screen = MainScreen.SETTINGS },
             )
             MainScreen.SETTINGS -> SettingsScreen(
                 viewModel = settingsViewModel,

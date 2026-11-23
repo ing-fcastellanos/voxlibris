@@ -92,6 +92,35 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate4To5_keepsBooksAndAddsFinishedAndChapter() = runBlocking {
+        helper.createDatabase(4).use { db ->
+            db.execSQL(
+                "INSERT INTO books (created_at, file_name, title, author, media_type, progression, voice_mode, narrator_voice_id, dialogue_voice_id) " +
+                    "VALUES (1, 'niebla.epub', 'Niebla', 'Miguel de Unamuno', 'application/epub+zip', '{}', 'NARRATOR_DIALOGUE', 0, 5)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(5).use { db ->
+            db.prepare("SELECT title, voice_mode, finished_at, chapter_index, chapter_count, chapter_title FROM books").use { row ->
+                assertTrue(row.step())
+                assertEquals("Niebla", row.getText(0))
+                assertEquals("NARRATOR_DIALOGUE", row.getText(1))
+                assertTrue(row.isNull(2))
+                assertTrue(row.isNull(3))
+                assertTrue(row.isNull(4))
+                assertTrue(row.isNull(5))
+                assertFalse(row.step())
+            }
+            db.execSQL("UPDATE books SET finished_at = 7, chapter_index = 12, chapter_count = 33, chapter_title = 'XII' WHERE id = 1")
+            db.prepare("SELECT finished_at, chapter_index FROM books").use { row ->
+                assertTrue(row.step())
+                assertEquals(7L, row.getLong(0))
+                assertEquals(12L, row.getLong(1))
+            }
+        }
+    }
+
     private fun SQLiteConnection.count(table: String): Long =
         prepare("SELECT COUNT(*) FROM $table").use { it.step(); it.getLong(0) }
 }

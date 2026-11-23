@@ -23,8 +23,14 @@ interface BookDao {
     @Query("DELETE FROM books WHERE id = :id")
     suspend fun delete(id: Long)
 
-    @Query("UPDATE books SET progression = :progression, last_opened_at = :openedAt WHERE id = :id")
-    suspend fun updateProgression(id: Long, progression: String?, openedAt: Long)
+    @Query(
+        "UPDATE books SET progression = :progression, last_opened_at = :openedAt, " +
+            "chapter_index = :chapterIndex, chapter_count = :chapterCount, chapter_title = :chapterTitle WHERE id = :id",
+    )
+    suspend fun updateProgression(id: Long, progression: String?, openedAt: Long, chapterIndex: Int?, chapterCount: Int?, chapterTitle: String?)
+
+    @Query("UPDATE books SET finished_at = :finishedAt WHERE id = :id")
+    suspend fun updateFinished(id: Long, finishedAt: Long?)
 
     @Query("SELECT voice_mode, narrator_voice_id, dialogue_voice_id FROM books WHERE id = :id")
     fun observeVoice(id: Long): Flow<BookVoiceRow?>

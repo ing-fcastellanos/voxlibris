@@ -52,6 +52,8 @@ fun ContinueCard(
     onListen: () -> Unit,
     onVoice: () -> Unit,
     modifier: Modifier = Modifier,
+    chapterText: String? = null,
+    remainingText: String? = null,
 ) {
     val c = VoxLibrisTheme.colors
     val t = VoxLibrisTheme.typography
@@ -81,11 +83,13 @@ fun ContinueCard(
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(VoxDimens.space1)) {
                 Text(label, style = t.caption, color = c.onColor)
                 Text(title, style = t.displayM, color = c.onColor, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                if (author != null) {
+                if (chapterText != null) {
+                    Text(chapterText, style = t.caption, color = c.onColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                } else if (author != null) {
                     Text(author, style = t.caption, color = c.onColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Spacer(Modifier.weight(1f))
-                Text(stringResource(R.string.vx_read_percent, progressPercent), style = t.caption, color = c.onColor)
+                Text(remainingText ?: stringResource(R.string.vx_read_percent, progressPercent), style = t.caption, color = c.onColor, maxLines = 1)
                 ProgressBar(progressPercent / 100f, trackColor = c.tomatoTrack, fillColor = c.onColor)
             }
         }

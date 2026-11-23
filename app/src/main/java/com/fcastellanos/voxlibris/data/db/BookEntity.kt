@@ -28,6 +28,12 @@ data class BookEntity(
     @ColumnInfo(name = "voice_mode") val voiceMode: String? = null,
     @ColumnInfo(name = "narrator_voice_id") val narratorVoiceId: Int? = null,
     @ColumnInfo(name = "dialogue_voice_id") val dialogueVoiceId: Int? = null,
+    /** Cuándo se marcó como terminado; null mientras no. */
+    @ColumnInfo(name = "finished_at") val finishedAt: Long? = null,
+    /** Capítulo (recurso del orden de lectura, desde 1) donde está la posición guardada, y cuántos hay. */
+    @ColumnInfo(name = "chapter_index") val chapterIndex: Int? = null,
+    @ColumnInfo(name = "chapter_count") val chapterCount: Int? = null,
+    @ColumnInfo(name = "chapter_title") val chapterTitle: String? = null,
 )
 
 /** Las columnas de voz de un libro, para observarlas sin el resto de la fila. */

@@ -16,7 +16,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import com.fcastellanos.voxlibris.R
+import com.fcastellanos.voxlibris.data.LibraryQuery
 import com.fcastellanos.voxlibris.ui.theme.VoxDimens
 import com.fcastellanos.voxlibris.ui.theme.VoxLibrisTheme
 import java.io.File
@@ -38,6 +43,8 @@ fun BookRow(
     onMenu: () -> Unit,
     onListen: () -> Unit,
     modifier: Modifier = Modifier,
+    finished: Boolean = false,
+    emphasis: String? = null,
 ) {
     val c = VoxLibrisTheme.colors
     val t = VoxLibrisTheme.typography
@@ -62,11 +69,11 @@ fun BookRow(
         ) {
             BookCover(title, style, coverFile, CoverSize.Small)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, style = t.bodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(underlined(title, emphasis), style = t.bodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (author != null) {
-                    Text(author, style = t.caption, color = c.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(underlined(author, emphasis), style = t.caption, color = c.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                BookProgress(progressPercent, Modifier.padding(top = 4.dp))
+                BookProgress(if (finished) 100 else progressPercent, Modifier.padding(top = 4.dp))
             }
         }
         val tint = style.tint.colors
@@ -78,6 +85,15 @@ fun BookRow(
             containerColor = tint.container,
             contentColor = tint.content,
         )
+    }
+}
+
+/** El texto con la coincidencia de [query] subrayada, como en los resultados de Buscar. */
+private fun underlined(text: String, query: String?): AnnotatedString {
+    val range = query?.let { LibraryQuery.matchRange(text, it) } ?: return AnnotatedString(text)
+    return buildAnnotatedString {
+        append(text)
+        addStyle(SpanStyle(textDecoration = TextDecoration.Underline), range.first, range.last + 1)
     }
 }
 

@@ -28,4 +28,41 @@
     <string name="library_nav_home">Inicio</string>
     <string name="library_status_playing">Leyendo en voz alta</string>
     <string name="library_status_needs_model">Faltan las voces. Tocá para descargarlas.</string>
+
+    <!-- Buscar, ordenar y estantes -->
+    <string name="library_search">Buscar</string>
+    <string name="search_placeholder">Título o autor</string>
+    <string name="search_clear">Borrar búsqueda</string>
+    <string name="search_recent">Búsquedas recientes</string>
+    <string name="search_empty">Ningún libro coincide con “%1$s”.</string>
+    <string name="sort_by">Ordenar por</string>
+    <string name="sort_recent">Recientes</string>
+    <string name="sort_title">Título</string>
+    <string name="sort_author">Autor</string>
+    <string name="sort_progress">Avance</string>
+    <string name="sort_hide_finished">Ocultar terminados</string>
+    <string name="shelf_all">Todos · %1$d</string>
+    <string name="shelf_unfinished">Sin terminar · %1$d</string>
+    <string name="shelf_new">Nuevos · %1$d</string>
+    <string name="shelf_finished">Terminados · %1$d</string>
+    <string name="shelf_label">Estantes</string>
+    <string name="library_shelf_empty">No hay libros en este estante.</string>
+
+    <!-- Menú del libro -->
+    <string name="menu_listen_from_chapter">Escuchar desde el capítulo %1$d</string>
+    <string name="menu_contents">Capítulos y marcadores</string>
+    <string name="menu_mark_finished">Marcar como terminado</string>
+    <string name="menu_mark_unfinished">Marcar como no terminado</string>
+    <string name="menu_info">Información del libro</string>
+    <string name="chapter_of">Capítulo %1$d de %2$d</string>
+    <string name="chapter_progress">Capítulo %1$d de %2$d · %3$d %%</string>
+    <string name="info_author">Autor</string>
+    <string name="info_language">Idioma</string>
+    <string name="info_added">Agregado</string>
+    <string name="info_size">Tamaño</string>
+    <string name="info_progress">Avance</string>
+    <string name="info_chapter">Capítulo</string>
+    <string name="info_unknown">Sin dato</string>
+    <string name="msg_marked_finished">“%1$s” quedó como terminado</string>
+    <string name="msg_marked_unfinished">“%1$s” vuelve a estar en curso</string>
 </resources>

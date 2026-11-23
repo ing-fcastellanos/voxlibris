@@ -154,6 +154,9 @@ class EpubImporter(
         }
     }
 
+    /** Nombre del archivo tal como lo muestra el gestor de archivos, si el proveedor lo informa. */
+    fun displayName(uri: Uri): String? = queryDisplayName(uri)
+
     private fun queryDisplayName(uri: Uri): String? = runCatching {
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }

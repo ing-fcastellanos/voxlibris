@@ -2,6 +2,7 @@ package com.fcastellanos.voxlibris.data
 
 import com.fcastellanos.voxlibris.data.db.BookDao
 import com.fcastellanos.voxlibris.data.db.BookEntity
+import com.fcastellanos.voxlibris.reading.ChapterRef
 import com.fcastellanos.voxlibris.tts.ReadingMode
 import com.fcastellanos.voxlibris.tts.VoiceChoice
 import kotlinx.coroutines.Dispatchers
@@ -19,9 +20,20 @@ class BookRepository(
 
     suspend fun get(bookId: Long): BookEntity? = dao.get(bookId)
 
-    /** Guarda el Locator (JSON de Readium) de la posición actual y marca el libro como abierto. */
-    suspend fun saveProgression(bookId: Long, locatorJson: String) {
-        dao.updateProgression(bookId, locatorJson, System.currentTimeMillis())
+    /**
+     * Guarda el Locator (JSON de Readium) de la posición actual, el capítulo donde cae y marca el
+     * libro como abierto. Sin [chapter] se conserva lo que ya había.
+     */
+    suspend fun saveProgression(bookId: Long, locatorJson: String, chapter: ChapterRef? = null) {
+        val current = chapter ?: dao.get(bookId)?.let { entity ->
+            entity.chapterIndex?.let { index -> ChapterRef(index, entity.chapterCount ?: index, entity.chapterTitle) }
+        }
+        dao.updateProgression(bookId, locatorJson, System.currentTimeMillis(), current?.index, current?.count, current?.title)
+    }
+
+    /** Marca o desmarca un libro como terminado. */
+    suspend fun setFinished(bookId: Long, finished: Boolean) {
+        dao.updateFinished(bookId, if (finished) System.currentTimeMillis() else null)
     }
 
     /** Modo y voces propios del libro, o `null` mientras sigue los valores por defecto. */

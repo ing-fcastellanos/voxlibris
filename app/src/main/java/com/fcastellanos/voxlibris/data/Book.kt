@@ -17,7 +17,16 @@ data class Book(
     val progression: String?,
     /** Porcentaje leído (0 a 100) según el último Locator guardado, o null si nunca se abrió. */
     val progressPercent: Int?,
-)
+    /** Marcado como terminado por la persona (o leído hasta el final). */
+    val finished: Boolean,
+    /** Capítulo de la posición guardada, desde 1, y cuántos tiene el libro; null si no se sabe. */
+    val chapterIndex: Int?,
+    val chapterCount: Int?,
+    val chapterTitle: String?,
+) {
+    /** Nunca se abrió. */
+    val isNew: Boolean get() = progression == null
+}
 
 internal fun BookEntity.toBook(storage: LibraryStorage): Book = Book(
     id = id,
@@ -33,4 +42,8 @@ internal fun BookEntity.toBook(storage: LibraryStorage): Book = Book(
             .getOrNull()
             ?.let { (it * 100).toInt().coerceIn(0, 100) }
     },
+    finished = finishedAt != null,
+    chapterIndex = chapterIndex,
+    chapterCount = chapterCount,
+    chapterTitle = chapterTitle,
 )

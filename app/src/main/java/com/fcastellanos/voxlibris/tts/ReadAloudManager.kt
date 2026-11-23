@@ -8,6 +8,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import com.fcastellanos.voxlibris.data.BookRepository
+import com.fcastellanos.voxlibris.reading.ChapterRef
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -296,7 +297,8 @@ class ReadAloudManager(
         val bookId = _activeBookId.value ?: return
         val locator = _highlight.value ?: pendingLocator ?: return
         Log.d(TAG, "Posición guardada: ${describe(locator)} «${locator.text.highlight.orEmpty().take(40)}»")
-        scope.launch { bookRepository.saveProgression(bookId, locator.toJSON().toString()) }
+        val chapter = readerRepository[bookId]?.let { ChapterRef.of(it.publication, locator) }
+        scope.launch { bookRepository.saveProgression(bookId, locator.toJSON().toString(), chapter) }
     }
 
     fun togglePlayPause() {
@@ -416,7 +418,8 @@ class ReadAloudManager(
             }
             launch {
                 nav.location.sample(PROGRESS_SAVE_MS).collect { location ->
-                    bookRepository.saveProgression(bookId, location.utteranceLocator.toJSON().toString())
+                    val chapter = readerRepository[bookId]?.let { ChapterRef.of(it.publication, location.utteranceLocator) }
+                    bookRepository.saveProgression(bookId, location.utteranceLocator.toJSON().toString(), chapter)
                 }
             }
             launch {

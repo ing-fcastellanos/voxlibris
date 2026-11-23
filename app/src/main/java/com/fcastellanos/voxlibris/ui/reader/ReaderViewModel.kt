@@ -13,6 +13,7 @@ import com.fcastellanos.voxlibris.di.AppContainer
 import com.fcastellanos.voxlibris.dictionary.DictionaryResult
 import com.fcastellanos.voxlibris.dictionary.DictionaryWords
 import com.fcastellanos.voxlibris.dictionary.WiktionaryDictionary
+import com.fcastellanos.voxlibris.reading.ChapterRef
 import com.fcastellanos.voxlibris.reading.ReaderRepository
 import com.fcastellanos.voxlibris.reading.ReaderSession
 import com.fcastellanos.voxlibris.reading.ReadingPreferencesStore
@@ -314,7 +315,7 @@ class ReaderViewModel(
         val json = locator.toJSON().toString()
         if (json == lastSavedJson) return
         lastSavedJson = json
-        bookRepository.saveProgression(bookId, json)
+        bookRepository.saveProgression(bookId, json, session?.let { ChapterRef.of(it.publication, locator) })
     }
 
     fun go(link: Link) {
@@ -341,7 +342,8 @@ class ReaderViewModel(
         // La lectura en voz alta sigue en segundo plano: solo soltamos nuestra referencia a la publicación.
         readerRepository.release(bookId)
         if (pending != null) {
-            applicationScope.launch { bookRepository.saveProgression(bookId, pending) }
+            val chapter = session?.let { s -> _currentLocator.value?.let { ChapterRef.of(s.publication, it) } }
+            applicationScope.launch { bookRepository.saveProgression(bookId, pending, chapter) }
         }
     }
 
