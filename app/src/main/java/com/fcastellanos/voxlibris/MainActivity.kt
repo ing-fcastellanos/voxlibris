@@ -10,7 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -23,6 +25,8 @@ import com.fcastellanos.voxlibris.ui.library.LibraryScreen
 import com.fcastellanos.voxlibris.ui.library.LibraryViewModel
 import com.fcastellanos.voxlibris.ui.onboarding.OnboardingScreen
 import com.fcastellanos.voxlibris.ui.onboarding.OnboardingViewModel
+import com.fcastellanos.voxlibris.ui.player.PlayerScreen
+import com.fcastellanos.voxlibris.ui.player.PlayerViewModel
 import com.fcastellanos.voxlibris.ui.settings.SettingsScreen
 import com.fcastellanos.voxlibris.ui.settings.SettingsViewModel
 import com.fcastellanos.voxlibris.ui.settings.StorageScreen
@@ -31,7 +35,7 @@ import com.fcastellanos.voxlibris.ui.voices.DefaultVoiceScreen
 import com.fcastellanos.voxlibris.ui.voices.VoicesViewModel
 
 /** Pantallas de la actividad principal; el lector es otra actividad. */
-private enum class MainScreen { LIBRARY, SETTINGS, DEFAULT_VOICE, STORAGE }
+private enum class MainScreen { LIBRARY, PLAYER, SETTINGS, DEFAULT_VOICE, STORAGE }
 
 private val EPUB_MIME_TYPES = arrayOf("application/epub+zip")
 
@@ -63,25 +67,48 @@ class MainActivity : ComponentActivity() {
                         viewModel(factory = OnboardingViewModel.factory(container.voiceModels, onboarding))
                     OnboardingScreen(viewModel = onboardingViewModel)
                 } else {
-                    MainScreens()
+                    MainScreens(darkTheme)
                 }
             }
         }
     }
 
     @Composable
-    private fun MainScreens() {
+    private fun MainScreens(darkTheme: Boolean) {
         var screen by rememberSaveable { mutableStateOf(MainScreen.LIBRARY) }
+        var playerBookId by rememberSaveable { mutableLongStateOf(-1L) }
         val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             viewModel.importAll(uris)
             screen = MainScreen.LIBRARY
         }
         val addBook = { picker.launch(EPUB_MIME_TYPES) }
         val nowPlaying = {
-            screen = MainScreen.LIBRARY
-            viewModel.openNowPlaying()
+            val target = viewModel.nowPlayingTarget()
+            if (target != null) {
+                playerBookId = target
+                screen = MainScreen.PLAYER
+            } else {
+                screen = MainScreen.LIBRARY
+            }
+        }
+        // Si desde la notificación empieza a sonar otro libro, el reproductor lo sigue.
+        val activeBookId by container.readAloud.activeBookId.collectAsStateWithLifecycle()
+        LaunchedEffect(activeBookId) {
+            if (screen == MainScreen.PLAYER && activeBookId != null && activeBookId != playerBookId) playerBookId = activeBookId!!
         }
         when (screen) {
+            MainScreen.PLAYER -> {
+                val playerViewModel: PlayerViewModel = viewModel(
+                    key = "player-$playerBookId",
+                    factory = PlayerViewModel.factory(container, playerBookId),
+                )
+                PlayerScreen(
+                    viewModel = playerViewModel,
+                    darkTheme = darkTheme,
+                    onMinimize = { screen = MainScreen.LIBRARY },
+                    onListen = viewModel::listen,
+                )
+            }
             MainScreen.LIBRARY -> LibraryScreen(
                 viewModel = viewModel,
                 onAddBook = addBook,

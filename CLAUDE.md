@@ -43,6 +43,7 @@ ui/reader/ReaderPaper.kt      # fondos de lectura, colores de las decoraciones y
 ui/reader/AppearanceSheet.kt  # hoja de Apariencia, compartida por el lector y Ajustes
 ui/MainNavBar.kt              # la barra de cuatro ítems: Inicio, Reproduciendo, Agregar libro y Ajustes
 ui/settings/                  # Ajustes y Voces y almacenamiento; ui/voices/DefaultVoiceScreen.kt es Voz predeterminada
+ui/player/                    # Reproduciendo: el reproductor a pantalla completa; reutiliza las hojas del lector
 settings/AppPreferencesStore.kt # tema, resaltado de la frase que suena y revisión del paquete de voces
 assets/fonts/                 # Literata y Figtree para el texto del libro
 ```

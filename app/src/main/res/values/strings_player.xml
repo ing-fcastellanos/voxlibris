@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Reproductor a pantalla completa -->
+    <string name="player_minimize">Minimizar reproductor</string>
+    <string name="player_more">Más opciones</string>
+    <string name="player_full_text">Texto completo</string>
+    <string name="player_chapters">Capítulos y marcadores</string>
+    <string name="player_sentence_of">Frase %1$d de %2$d</string>
+    <string name="player_chapter_n">Capítulo %1$d</string>
+    <string name="player_idle_hint">Tocá play para seguir desde donde lo dejaste.</string>
+    <string name="player_idle_new">Tocá play para empezar a escuchar.</string>
+    <string name="player_cancel_timer">Cancelar temporizador</string>
+    <string name="player_change_voice">Cambiar lector</string>
+    <string name="player_speed_menu">Velocidad</string>
+</resources>

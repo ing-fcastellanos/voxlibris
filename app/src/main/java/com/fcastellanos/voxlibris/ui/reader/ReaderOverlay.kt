@@ -276,15 +276,7 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
         )
     }
     if (showVoices) {
-        VoxBottomSheet(onDismissRequest = { showVoices = false }) {
-            SheetHeader(stringResource(R.string.voices_who), tag = stringResource(R.string.voices_tag))
-            VoiceSettingsContent(viewModel = voicesViewModel, modifier = Modifier.weight(1f, fill = false))
-            VoxButton(
-                stringResource(R.string.reader_done),
-                onClick = { showVoices = false },
-                size = VoxButtonSize.Block,
-            )
-        }
+        VoicesSheet(viewModel = voicesViewModel, onDismiss = { showVoices = false })
     }
     tappedHighlight?.let { highlight ->
         HighlightDialog(
@@ -299,6 +291,20 @@ fun ReaderOverlay(viewModel: ReaderViewModel, onBack: () -> Unit, onListen: () -
             editor = editor,
             onSave = { note -> viewModel.saveNote(editor.highlightId, note) },
             onDismiss = viewModel::dismissNoteEditor,
+        )
+    }
+}
+
+/** Lector del libro abierto (pantalla «Elegir voz» del lienzo): modo, voces, muestra, velocidad y calidad. */
+@Composable
+internal fun VoicesSheet(viewModel: VoicesViewModel, onDismiss: () -> Unit) {
+    VoxBottomSheet(onDismissRequest = onDismiss) {
+        SheetHeader(stringResource(R.string.voices_who), tag = stringResource(R.string.voices_tag))
+        VoiceSettingsContent(viewModel = viewModel, modifier = Modifier.weight(1f, fill = false))
+        VoxButton(
+            stringResource(R.string.reader_done),
+            onClick = onDismiss,
+            size = VoxButtonSize.Block,
         )
     }
 }
@@ -474,7 +480,7 @@ private fun ListeningControls(
 /** Minutos restantes hasta `endsAt`, actualizados cada 20 segundos mientras el temporizador esté activo. */
 /** Tiempo que falta para terminar el libro, en minutos u horas y minutos. */
 @Composable
-private fun formatRemaining(seconds: Long): String {
+internal fun formatRemaining(seconds: Long): String {
     val minutes = ((seconds + 59) / 60).toInt()
     return when {
         minutes < 1 -> stringResource(R.string.remaining_under_minute)
@@ -484,7 +490,7 @@ private fun formatRemaining(seconds: Long): String {
 }
 
 @Composable
-private fun remainingMinutes(endsAt: Long): Int {
+internal fun remainingMinutes(endsAt: Long): Int {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(endsAt) {
         while (true) {
@@ -497,7 +503,7 @@ private fun remainingMinutes(endsAt: Long): Int {
 
 /** Temporizador de sueño (pantalla «Temporizador» del lienzo): cuánto falta y las opciones. */
 @Composable
-private fun SleepTimerSheet(sleepEndsAt: Long?, onSelect: (Int?) -> Unit, onDismiss: () -> Unit) {
+internal fun SleepTimerSheet(sleepEndsAt: Long?, onSelect: (Int?) -> Unit, onDismiss: () -> Unit) {
     val c = VoxLibrisTheme.colors
     var chosen by rememberSaveable { mutableStateOf<Int?>(null) }
     VoxBottomSheet(onDismissRequest = onDismiss) {
@@ -550,7 +556,7 @@ private fun SleepTimerSheet(sleepEndsAt: Long?, onSelect: (Int?) -> Unit, onDism
 
 /** Contenido del libro (pantalla «Capítulos y marcadores» del lienzo): capítulos y resaltados en pestañas. */
 @Composable
-private fun ContentsSheet(
+internal fun ContentsSheet(
     entries: List<FlatEntry<Link>>,
     current: Locator?,
     highlights: List<Highlight>,
@@ -734,7 +740,7 @@ private fun HighlightDialog(highlight: Highlight, onEditNote: () -> Unit, onDele
 
 /** Editor de la nota personal de un resaltado: al crearlo se puede omitir, al editarlo se puede cancelar. */
 @Composable
-private fun NoteDialog(
+internal fun NoteDialog(
     editor: ReaderViewModel.NoteEditor,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,

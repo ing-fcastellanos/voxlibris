@@ -94,18 +94,15 @@ class LibraryViewModel(
     }
 
     /**
-     * «Reproduciendo» en la barra: abre lo que suena o, si nada suena, el libro que la tarjeta de
-     * Inicio ofrece seguir. Sin libros, avisa.
+     * Libro para «Reproduciendo» en la barra: el que suena o, si nada suena, el que la tarjeta de
+     * Inicio ofrece seguir. Sin libros devuelve null y avisa.
      */
-    fun openNowPlaying() {
+    fun nowPlayingTarget(): Long? {
         val target = readAloud.activeBookId.value
             ?: books.value.firstOrNull { book -> book.progressPercent?.let { it < 100 } == true }?.id
             ?: books.value.firstOrNull()?.id
-        if (target == null) {
-            viewModelScope.launch { _messages.send(UiMessage.NothingToPlay) }
-        } else {
-            openBook(target)
-        }
+        if (target == null) viewModelScope.launch { _messages.send(UiMessage.NothingToPlay) }
+        return target
     }
 
     /** Abre la publicación con Readium y, si funciona, pide a la pantalla que lance el lector. */
